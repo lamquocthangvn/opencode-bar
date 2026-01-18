@@ -31,29 +31,52 @@ enum RefreshInterval: Int, CaseIterable {
 final class StatusBarIconView: NSView {
     private var percentage: Double = 0
     private var usedCount: Int = 0
+    private var addOnCost: Double = 0
     private var isLoading = false
     private var hasError = false
     
+    /// Dynamic width calculation based on content
+    /// - Copilot icon (16px) + padding (6px) = 22px base
+    /// - With add-on cost: icon + cost text width
+    /// - Without add-on cost: icon + circle (8px) + padding (4px) + number text width
     override var intrinsicContentSize: NSSize {
-        return NSSize(width: 80, height: 22)
+        let baseIconWidth: CGFloat = 22 // icon (16) + right padding (6)
+        
+        if addOnCost > 0 {
+            // Calculate cost text width dynamically
+            let costText = formatCost(addOnCost)
+            let font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .semibold)
+            let textWidth = (costText as NSString).size(withAttributes: [.font: font]).width
+            return NSSize(width: baseIconWidth + textWidth + 4, height: 22)
+        } else {
+            // Circle (8px) + padding (4px) + number text width
+            let text = isLoading ? "..." : (hasError ? "Err" : "\(usedCount)")
+            let font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium)
+            let textWidth = (text as NSString).size(withAttributes: [.font: font]).width
+            return NSSize(width: baseIconWidth + 8 + 4 + textWidth + 4, height: 22)
+        }
     }
     
-    func update(used: Int, limit: Int) {
+    func update(used: Int, limit: Int, cost: Double = 0) {
         usedCount = used
+        addOnCost = cost
         percentage = limit > 0 ? min((Double(used) / Double(limit)) * 100, 100) : 0
         isLoading = false
         hasError = false
+        invalidateIntrinsicContentSize()
         needsDisplay = true
     }
     
     func showLoading() {
         isLoading = true
+        invalidateIntrinsicContentSize()
         needsDisplay = true
     }
     
     func showError() {
         hasError = true
         isLoading = false
+        invalidateIntrinsicContentSize()
         needsDisplay = true
     }
     
@@ -64,10 +87,13 @@ final class StatusBarIconView: NSView {
         
         drawCopilotIcon(at: NSPoint(x: 2, y: 3), size: 16, isDark: isDark)
         
-        let progressRect = NSRect(x: 22, y: 7, width: 8, height: 8)
-        drawCircularProgress(in: progressRect, isDark: isDark)
-        
-        drawUsageText(at: NSPoint(x: 34, y: 3), isDark: isDark)
+        if addOnCost > 0 {
+            drawCostText(at: NSPoint(x: 22, y: 3), isDark: isDark)
+        } else {
+            let progressRect = NSRect(x: 22, y: 7, width: 8, height: 8)
+            drawCircularProgress(in: progressRect, isDark: isDark)
+            drawUsageText(at: NSPoint(x: 34, y: 3), isDark: isDark)
+        }
     }
     
     private func drawCopilotIcon(at origin: NSPoint, size: CGFloat, isDark: Bool) {
@@ -143,6 +169,25 @@ final class StatusBarIconView: NSView {
         
         let attrString = NSAttributedString(string: text, attributes: attributes)
         attrString.draw(at: origin)
+    }
+    
+    private func drawCostText(at origin: NSPoint, isDark: Bool) {
+        let text = formatCost(addOnCost)
+        let font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .semibold)
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.white
+        ]
+        let attrString = NSAttributedString(string: text, attributes: attributes)
+        attrString.draw(at: origin)
+    }
+    
+    private func formatCost(_ cost: Double) -> String {
+        if cost >= 10 {
+            return String(format: "$%.1f", cost)
+        } else {
+            return String(format: "$%.2f", cost)
+        }
     }
     
     private func colorForPercentage(_ percentage: Double, isDark: Bool) -> NSColor {
@@ -730,7 +775,7 @@ final class StatusBarController: NSObject {
     }
     
     private func updateUIForSuccess(usage: CopilotUsage) {
-        statusBarIconView.update(used: usage.usedRequests, limit: usage.limitRequests)
+        statusBarIconView.update(used: usage.usedRequests, limit: usage.limitRequests, cost: usage.netBilledAmount)
         usageView.update(usage: usage)
         signInItem.isHidden = true
     }
