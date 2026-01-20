@@ -167,6 +167,13 @@ jobs:
           VERSION="${{ steps.new_version.outputs.new_version }}"
           DMG_NAME="CopilotMonitor-${VERSION}.dmg"
           
+          # Create clean staging directory with ONLY the app and Applications symlink
+          # This prevents extra files (Packaging.log, DistributionSummary.plist, etc.) from being included
+          DMG_STAGING="$RUNNER_TEMP/dmg_staging"
+          mkdir -p "$DMG_STAGING"
+          cp -R "$RUNNER_TEMP/export/CopilotMonitor.app" "$DMG_STAGING/"
+          ln -s /Applications "$DMG_STAGING/Applications"
+          
           create-dmg \
             --volname "Copilot Monitor" \
             --window-pos 200 120 \
@@ -176,25 +183,22 @@ jobs:
             --app-drop-link 375 175 \
             --hide-extension "CopilotMonitor.app" \
             "$DMG_NAME" \
-            "$RUNNER_TEMP/export/" || true
+            "$DMG_STAGING" || true
           
           if [ -f "$DMG_NAME" ]; then
             codesign --force --sign "Developer ID Application" "$DMG_NAME"
             echo "DMG created and signed: $DMG_NAME"
           else
             echo "create-dmg failed, falling back to hdiutil..."
-            mkdir -p dmg_temp
-            cp -R "$RUNNER_TEMP/export/CopilotMonitor.app" dmg_temp/
-            ln -s /Applications dmg_temp/Applications
-            
             hdiutil create -volname "Copilot Monitor ${VERSION}" \
-              -srcfolder dmg_temp \
+              -srcfolder "$DMG_STAGING" \
               -ov -format UDZO \
               "$DMG_NAME"
-            
             codesign --force --sign "Developer ID Application" "$DMG_NAME"
-            rm -rf dmg_temp
           fi
+          
+          # Cleanup staging directory
+          rm -rf "$DMG_STAGING"
       
       - name: Notarize DMG
         env:
