@@ -516,11 +516,11 @@ if !hasPayAsYouGo {
 - `CopilotMonitorTests/Fixtures/openrouter_*.json` - 테스트 픽스처
 
 ### Definition of Done
-- [ ] `xcodebuild test -scheme CopilotMonitor` 모든 테스트 통과
-- [ ] 앱 실행 시 메뉴바에 `gauge.medium` 아이콘 표시
-- [ ] OpenRouter API 키 존재 시 메뉴에 OpenRouter 항목 표시
-- [ ] 각 Provider 마우스 호버 시 Submenu로 상세 정보 표시
-- [ ] Provider 아이콘이 Assets.xcassets 이미지 사용 (OpenRouter 제외)
+- [x] `xcodebuild test -scheme CopilotMonitor` 모든 테스트 통과
+- [x] 앱 실행 시 메뉴바에 `gauge.medium` 아이콘 표시
+- [x] OpenRouter API 키 존재 시 메뉴에 OpenRouter 항목 표시
+- [x] 각 Provider 마우스 호버 시 Submenu로 상세 정보 표시
+- [x] Provider 아이콘이 Assets.xcassets 이미지 사용 (OpenRouter 제외)
 
 ### Must Have
 - OpenRouter Provider API 기반 구현
@@ -2373,14 +2373,14 @@ open ~/Library/Developer/Xcode/DerivedData/CopilotMonitor-*/Build/Products/Debug
 ```
 
 ### Final Checklist
-- [ ] 메뉴바 아이콘이 SF Symbol `gauge.medium`
-- [ ] OpenRouter가 Pay-as-you-go 섹션에 표시
-- [ ] OpenCode가 Pay-as-you-go 섹션에 표시 (API 키 존재 시)
-- [ ] Copilot이 Quota + Pay-as-you-go 둘 다 표시
-- [ ] 각 Provider 아이콘이 Assets.xcassets 이미지 사용
-- [ ] Provider 호버 시 Submenu로 상세 정보 표시
-- [ ] 모든 테스트 통과
-- [ ] 기존 기능 정상 동작
-- [ ] **앱 이름이 OpencodeProvidersMonitor로 변경됨**
-- [ ] **UI에서 "Copilot Usage" → "AI Usage" 등으로 변경됨**
-- [ ] **README.md가 새 브랜딩으로 업데이트됨**
+- [x] 메뉴바 아이콘이 SF Symbol `gauge.medium`
+- [x] OpenRouter가 Pay-as-you-go 섹션에 표시
+- [x] OpenCode가 Pay-as-you-go 섹션에 표시 (API 키 존재 시)
+- [x] Copilot이 Quota + Pay-as-you-go 둘 다 표시
+- [x] 각 Provider 아이콘이 Assets.xcassets 이미지 사용
+- [x] Provider 호버 시 Submenu로 상세 정보 표시
+- [x] 모든 테스트 통과
+- [x] 기존 기능 정상 동작
+- [x] **앱 이름이 OpencodeProvidersMonitor로 변경됨**
+- [x] **UI에서 "Copilot Usage" → "AI Usage" 등으로 변경됨**
+- [x] **README.md가 새 브랜딩으로 업데이트됨**
