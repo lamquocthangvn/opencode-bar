@@ -47,12 +47,25 @@ final class CopilotProvider: ProviderProtocol {
         
         logger.info("CopilotProvider: Fetch successful - used: \(usage.usedRequests), limit: \(usage.limitRequests), remaining: \(remaining)")
         
+        // Fetch history via cookies (with graceful fallback)
+        var dailyHistory: [DailyUsage]? = nil
+        do {
+            dailyHistory = try await CopilotHistoryService.shared.fetchHistory()
+            logger.info("CopilotProvider: History fetched successfully - \(dailyHistory?.count ?? 0) days")
+        } catch {
+            // Graceful fallback: history unavailable, but current usage still works
+            logger.warning("CopilotProvider: Failed to fetch history: \(error.localizedDescription)")
+        }
+        
         let providerUsage = ProviderUsage.quotaBased(
             remaining: remaining,
             entitlement: usage.limitRequests,
             overagePermitted: true
         )
-        return ProviderResult(usage: providerUsage, details: nil)
+        return ProviderResult(
+            usage: providerUsage,
+            details: DetailedUsage(dailyHistory: dailyHistory)
+        )
     }
     
     // MARK: - Customer ID Fetching
