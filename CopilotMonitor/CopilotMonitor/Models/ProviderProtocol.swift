@@ -18,6 +18,10 @@ enum ProviderIdentifier: String, CaseIterable {
     case codex
     /// Google Gemini CLI
     case geminiCLI = "gemini_cli"
+    /// OpenRouter (pay-as-you-go)
+    case openRouter = "open_router"
+    /// OpenCode (pay-as-you-go)
+    case openCode = "open_code"
     
     /// Human-readable name for the provider
     var displayName: String {
@@ -30,6 +34,10 @@ enum ProviderIdentifier: String, CaseIterable {
             return "Codex"
         case .geminiCLI:
             return "Gemini CLI"
+        case .openRouter:
+            return "OpenRouter"
+        case .openCode:
+            return "OpenCode"
         }
     }
 }

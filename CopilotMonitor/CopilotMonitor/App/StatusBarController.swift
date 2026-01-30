@@ -128,7 +128,7 @@ final class StatusBarIconView: NSView {
     }
     
     private func drawCopilotIcon(at origin: NSPoint, size: CGFloat, isDark: Bool) {
-        guard let icon = NSImage(named: "CopilotIcon") else { return }
+        guard let icon = NSImage(systemSymbolName: "gauge.medium", accessibilityDescription: "Usage") else { return }
         icon.isTemplate = true
         
         let tintedImage = NSImage(size: icon.size)
