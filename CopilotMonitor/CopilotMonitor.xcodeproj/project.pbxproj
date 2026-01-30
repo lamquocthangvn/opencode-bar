@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0B6CF8BEB936A2055F19AA8C /* CodexProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76783C44AA2329AE3FA7E981 /* CodexProvider.swift */; };
+		OR1111111111111111111111 /* OpenRouterProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = OR2222222222222222222222 /* OpenRouterProvider.swift */; };
 		0EA5E7A5BCD47582D6C2175B /* TokenManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBF0C48368166F3AD0C79F92 /* TokenManager.swift */; };
 		23AA5FD37F2062EACCA79F50 /* GeminiCLIProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B63B85E0F2A8C591D7E26AE2 /* GeminiCLIProviderTests.swift */; };
 		27A0B56ADAC5B75A3270F90D /* CopilotProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4AE672516E564CC52739BD9 /* CopilotProvider.swift */; };
@@ -47,6 +48,7 @@
 
 /* Begin PBXFileReference section */
 		06EC3B683EB6892E4F9C8316 /* GeminiCLIProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GeminiCLIProvider.swift; sourceTree = "<group>"; };
+		OR2222222222222222222222 /* OpenRouterProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = OpenRouterProvider.swift; sourceTree = "<group>"; };
 		18F40F1AC76A49A9B9DF74B0 /* ProviderManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ProviderManager.swift; sourceTree = "<group>"; };
 		4158558E58B121A9D13C48C3 /* ProviderUsage.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ProviderUsage.swift; sourceTree = "<group>"; };
 		4DDC1B4DE6B5118CE4AE8F82 /* ClaudeProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClaudeProvider.swift; sourceTree = "<group>"; };
@@ -103,6 +105,7 @@
 				4DDC1B4DE6B5118CE4AE8F82 /* ClaudeProvider.swift */,
 				76783C44AA2329AE3FA7E981 /* CodexProvider.swift */,
 				F4AE672516E564CC52739BD9 /* CopilotProvider.swift */,
+				OR2222222222222222222222 /* OpenRouterProvider.swift */,
 			);
 			name = Providers;
 			path = Providers;
@@ -334,6 +337,7 @@
 				AD95EBD6AE3134DF4C797577 /* ClaudeProvider.swift in Sources */,
 				0B6CF8BEB936A2055F19AA8C /* CodexProvider.swift in Sources */,
 				27A0B56ADAC5B75A3270F90D /* CopilotProvider.swift in Sources */,
+				OR1111111111111111111111 /* OpenRouterProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

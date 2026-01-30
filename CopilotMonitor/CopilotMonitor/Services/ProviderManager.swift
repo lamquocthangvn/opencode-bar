@@ -21,7 +21,8 @@ final class ProviderManager {
         providers = [
             ClaudeProvider(),
             CodexProvider(),
-            GeminiCLIProvider()
+            GeminiCLIProvider(),
+            OpenRouterProvider()
         ]
     }
     
