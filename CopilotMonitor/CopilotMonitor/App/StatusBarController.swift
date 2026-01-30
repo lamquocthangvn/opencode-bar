@@ -1164,6 +1164,75 @@ final class StatusBarController: NSObject {
                 let percent = total > 0 ? (remaining / total) * 100 : 0
                 submenu.addItem(NSMenuItem(title: String(format: "Credits: $%.0f/$%.0f (%.0f%%)", remaining, total, percent), action: nil, keyEquivalent: ""))
             }
+            
+        case .openCodeZen:
+            if let avg = details.avgCostPerDay {
+                submenu.addItem(NSMenuItem(title: String(format: "Avg/Day: $%.2f", avg), action: nil, keyEquivalent: ""))
+            }
+            if let sessions = details.sessions {
+                let formatted = NumberFormatter.localizedString(from: NSNumber(value: sessions), number: .decimal)
+                submenu.addItem(NSMenuItem(title: "Sessions: \(formatted)", action: nil, keyEquivalent: ""))
+            }
+            if let messages = details.messages {
+                let formatted = NumberFormatter.localizedString(from: NSNumber(value: messages), number: .decimal)
+                submenu.addItem(NSMenuItem(title: "Messages: \(formatted)", action: nil, keyEquivalent: ""))
+            }
+            
+        case .claude:
+            if let fiveHour = details.fiveHourUsage {
+                submenu.addItem(NSMenuItem(title: String(format: "5h Window: %.0f%%", fiveHour), action: nil, keyEquivalent: ""))
+                if let reset = details.fiveHourReset {
+                    let formatter = DateFormatter()
+                    formatter.timeStyle = .short
+                    submenu.addItem(NSMenuItem(title: "   Resets: \(formatter.string(from: reset))", action: nil, keyEquivalent: ""))
+                }
+            }
+            if let sevenDay = details.sevenDayUsage {
+                submenu.addItem(NSMenuItem(title: String(format: "7d Window: %.0f%%", sevenDay), action: nil, keyEquivalent: ""))
+                if let reset = details.sevenDayReset {
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = "MMM d"
+                    submenu.addItem(NSMenuItem(title: "   Resets: \(formatter.string(from: reset))", action: nil, keyEquivalent: ""))
+                }
+            }
+            if let sonnet = details.sonnetUsage {
+                submenu.addItem(NSMenuItem(title: String(format: "Sonnet: %.0f%%", sonnet), action: nil, keyEquivalent: ""))
+            }
+            if let opus = details.opusUsage {
+                submenu.addItem(NSMenuItem(title: String(format: "Opus: %.0f%%", opus), action: nil, keyEquivalent: ""))
+            }
+            
+        case .codex:
+            if let primary = details.dailyUsage {
+                submenu.addItem(NSMenuItem(title: String(format: "Primary: %.0f%%", primary), action: nil, keyEquivalent: ""))
+            }
+            if let secondary = details.secondaryUsage {
+                submenu.addItem(NSMenuItem(title: String(format: "Secondary: %.0f%%", secondary), action: nil, keyEquivalent: ""))
+            }
+            if let plan = details.planType {
+                submenu.addItem(NSMenuItem(title: "Plan: \(plan)", action: nil, keyEquivalent: ""))
+            }
+            
+        case .geminiCLI:
+            if let models = details.modelBreakdown, !models.isEmpty {
+                for (model, quota) in models.sorted(by: { $0.key < $1.key }) {
+                    submenu.addItem(NSMenuItem(title: String(format: "%@: %.0f%%", model, quota), action: nil, keyEquivalent: ""))
+                }
+            }
+            
+        case .antigravity:
+            if let models = details.modelBreakdown, !models.isEmpty {
+                for (model, quota) in models.sorted(by: { $0.key < $1.key }) {
+                    submenu.addItem(NSMenuItem(title: String(format: "%@: %.0f%%", model, quota), action: nil, keyEquivalent: ""))
+                }
+            }
+            if let plan = details.planType {
+                submenu.addItem(NSMenuItem(title: "Plan: \(plan)", action: nil, keyEquivalent: ""))
+            }
+            if let email = details.email {
+                submenu.addItem(NSMenuItem(title: "Email: \(email)", action: nil, keyEquivalent: ""))
+            }
+            
         default:
             break
         }
