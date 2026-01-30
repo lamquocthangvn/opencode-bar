@@ -506,18 +506,6 @@ final class StatusBarController: NSObject {
         // Load cached history immediately on startup (before API fetch completes)
         loadCachedHistoryOnStartup()
         
-        signInItem = NSMenuItem(title: "Sign In", action: #selector(signInClicked), keyEquivalent: "")
-        signInItem.image = NSImage(systemSymbolName: "person.crop.circle.badge.checkmark", accessibilityDescription: "Sign In")
-        signInItem.target = self
-        signInItem.isHidden = true
-        menu.addItem(signInItem)
-
-        resetLoginItem = NSMenuItem(title: "Reset Login", action: #selector(resetLoginClicked), keyEquivalent: "")
-        resetLoginItem.image = NSImage(systemSymbolName: "arrow.counterclockwise", accessibilityDescription: "Reset Login")
-        resetLoginItem.target = self
-        resetLoginItem.isHidden = true
-        menu.addItem(resetLoginItem)
-        
         let refreshItem = NSMenuItem(title: "Refresh", action: #selector(refreshClicked), keyEquivalent: "r")
         refreshItem.image = NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: "Refresh")
         refreshItem.target = self
@@ -557,20 +545,17 @@ final class StatusBarController: NSObject {
         
         menu.addItem(NSMenuItem.separator())
         
-        let enabledProvidersItem = NSMenuItem(title: "Enabled Providers", action: nil, keyEquivalent: "")
-        enabledProvidersItem.image = NSImage(systemSymbolName: "checkmark.circle", accessibilityDescription: "Enabled Providers")
-        enabledProvidersMenu = NSMenu()
-        
-        for identifier in ProviderIdentifier.allCases {
-            let item = NSMenuItem(title: identifier.displayName, action: #selector(toggleProvider(_:)), keyEquivalent: "")
-            item.target = self
-            item.representedObject = identifier.rawValue
-            item.state = isProviderEnabled(identifier) ? .on : .off
-            enabledProvidersMenu.addItem(item)
-        }
-        
-        enabledProvidersItem.submenu = enabledProvidersMenu
-        menu.addItem(enabledProvidersItem)
+        signInItem = NSMenuItem(title: "Sign In", action: #selector(signInClicked), keyEquivalent: "")
+        signInItem.image = NSImage(systemSymbolName: "person.crop.circle.badge.checkmark", accessibilityDescription: "Sign In")
+        signInItem.target = self
+        signInItem.isHidden = true
+        menu.addItem(signInItem)
+
+        resetLoginItem = NSMenuItem(title: "Reset Login", action: #selector(resetLoginClicked), keyEquivalent: "")
+        resetLoginItem.image = NSImage(systemSymbolName: "arrow.counterclockwise", accessibilityDescription: "Reset Login")
+        resetLoginItem.target = self
+        resetLoginItem.isHidden = true
+        menu.addItem(resetLoginItem)
         
         launchAtLoginItem = NSMenuItem(title: "Launch at Login", action: #selector(launchAtLoginClicked), keyEquivalent: "")
         launchAtLoginItem.image = NSImage(systemSymbolName: "power", accessibilityDescription: "Launch at Login")
@@ -941,20 +926,46 @@ final class StatusBarController: NSObject {
             isProviderEnabled(provider.identifier) && provider.identifier != .copilot
         }
         
+        // DEBUG: Log to file
+        let enabledNames = enabledProviders.map { $0.identifier.displayName }
+        let debugLog = "🔍 DEBUG fetchMultiProviderData: enabledProviders = \(enabledNames)\n"
+        try? debugLog.write(toFile: "/tmp/copilot_debug.log", atomically: false, encoding: .utf8)
+        
         guard !enabledProviders.isEmpty else {
             logger.info("fetchMultiProviderData: No enabled providers, skipping")
+            print("🔍 DEBUG: No enabled providers, returning early")
             return
         }
         
         logger.info("fetchMultiProviderData: Fetching \(enabledProviders.count) providers")
-        
         let results = await ProviderManager.shared.fetchAll()
+        
+        let fetchAllMsg = "📥 fetchAll returned \(results.count) results: \(results.keys.map { $0.displayName })\n"
+        if let handle = FileHandle(forWritingAtPath: "/tmp/copilot_debug.log") {
+            handle.seekToEndOfFile()
+            handle.write(fetchAllMsg.data(using: .utf8)!)
+            handle.closeFile()
+        }
         
         let filteredResults = results.filter { (identifier, _) in
             isProviderEnabled(identifier) && identifier != .copilot
         }
         
+        let filterMsg = "🔎 After filter: \(filteredResults.count) results: \(filteredResults.keys.map { $0.displayName })\n"
+        if let handle = FileHandle(forWritingAtPath: "/tmp/copilot_debug.log") {
+            handle.seekToEndOfFile()
+            handle.write(filterMsg.data(using: .utf8)!)
+            handle.closeFile()
+        }
+        
         await MainActor.run {
+            let mainActorMsg = "🎯 MainActor.run: Setting providerResults and calling updateMultiProviderMenu\n"
+            if let handle = FileHandle(forWritingAtPath: "/tmp/copilot_debug.log") {
+                handle.seekToEndOfFile()
+                handle.write(mainActorMsg.data(using: .utf8)!)
+                handle.closeFile()
+            }
+            
             self.providerResults = filteredResults
             self.updateMultiProviderMenu()
         }
@@ -978,21 +989,70 @@ final class StatusBarController: NSObject {
         return total
     }
     
-     private func updateMultiProviderMenu() {
-         guard let historyIndex = menu.items.firstIndex(of: historyMenuItem) else { return }
-         
-         var itemsToRemove: [NSMenuItem] = []
-         for i in (historyIndex + 1)..<menu.items.count {
-             let item = menu.items[i]
-             if item == signInItem { break }
-             if item.tag == 999 {
-                 itemsToRemove.append(item)
-             }
-         }
-         itemsToRemove.forEach { menu.removeItem($0) }
+      private func updateMultiProviderMenu() {
+          // DEBUG: Log entry
+          let debugEntry = "\n📋 updateMultiProviderMenu called\n"
+          if let handle = FileHandle(forWritingAtPath: "/tmp/copilot_debug.log") {
+              handle.seekToEndOfFile()
+              handle.write(debugEntry.data(using: .utf8)!)
+              handle.closeFile()
+          }
+          
+          guard let historyIndex = menu.items.firstIndex(of: historyMenuItem) else {
+              let debugMsg = "❌ historyMenuItem not found in menu!\n"
+              if let handle = FileHandle(forWritingAtPath: "/tmp/copilot_debug.log") {
+                  handle.seekToEndOfFile()
+                  handle.write(debugMsg.data(using: .utf8)!)
+                  handle.closeFile()
+              }
+              return
+          }
+          
+          // DEBUG: Log historyIndex
+          let debugIdx = "📍 historyIndex = \(historyIndex)\n"
+          if let handle = FileHandle(forWritingAtPath: "/tmp/copilot_debug.log") {
+              handle.seekToEndOfFile()
+              handle.write(debugIdx.data(using: .utf8)!)
+              handle.closeFile()
+          }
+          
+          var itemsToRemove: [NSMenuItem] = []
+          for i in (historyIndex + 1)..<menu.items.count {
+              let item = menu.items[i]
+              if item.tag == 999 {
+                  itemsToRemove.append(item)
+              }
+          }
+          itemsToRemove.forEach { menu.removeItem($0) }
          
          let hasCopilotData = currentUsage != nil
-         guard !providerResults.isEmpty || hasCopilotData else { return }
+         
+         // DEBUG: Log providerResults
+         let debugResults = "📊 providerResults.count = \(providerResults.count), hasCopilotData = \(hasCopilotData)\n"
+         if let handle = FileHandle(forWritingAtPath: "/tmp/copilot_debug.log") {
+             handle.seekToEndOfFile()
+             handle.write(debugResults.data(using: .utf8)!)
+             handle.closeFile()
+         }
+         
+         for (id, result) in providerResults {
+             let debugItem = "  - \(id.displayName): \(result.usage)\n"
+             if let handle = FileHandle(forWritingAtPath: "/tmp/copilot_debug.log") {
+                 handle.seekToEndOfFile()
+                 handle.write(debugItem.data(using: .utf8)!)
+                 handle.closeFile()
+             }
+         }
+         
+         guard !providerResults.isEmpty || hasCopilotData else {
+             let debugEmpty = "⚠️ No data to display, returning early\n"
+             if let handle = FileHandle(forWritingAtPath: "/tmp/copilot_debug.log") {
+                 handle.seekToEndOfFile()
+                 handle.write(debugEmpty.data(using: .utf8)!)
+                 handle.closeFile()
+             }
+             return
+         }
         
         var insertIndex = historyIndex + 1
         
@@ -1014,18 +1074,24 @@ final class StatusBarController: NSObject {
          var hasPayAsYouGo = false
          
           // Copilot Add-on (always show, even when $0.00)
-          if let copilotUsage = currentUsage {
-              hasPayAsYouGo = true
-              let addOnItem = NSMenuItem(
-                  title: String(format: "Copilot Add-on    $%.2f", copilotUsage.netBilledAmount),
-                  action: nil,
-                  keyEquivalent: ""
-              )
-              addOnItem.image = iconForProvider(.copilot)
-              addOnItem.tag = 999
-              menu.insertItem(addOnItem, at: insertIndex)
-              insertIndex += 1
-          }
+           if let copilotUsage = currentUsage {
+               hasPayAsYouGo = true
+               let addOnItem = NSMenuItem(
+                   title: String(format: "Copilot Add-on    $%.2f", copilotUsage.netBilledAmount),
+                   action: nil,
+                   keyEquivalent: ""
+               )
+               addOnItem.image = iconForProvider(.copilot)
+               addOnItem.tag = 999
+               
+               let submenu = NSMenu()
+               submenu.addItem(NSMenuItem(title: String(format: "Overage Requests: %.0f", copilotUsage.netQuantity), action: nil, keyEquivalent: ""))
+               submenu.addItem(NSMenuItem(title: String(format: "Billed Amount: $%.2f", copilotUsage.netBilledAmount), action: nil, keyEquivalent: ""))
+               addOnItem.submenu = submenu
+               
+               menu.insertItem(addOnItem, at: insertIndex)
+               insertIndex += 1
+           }
          
            for (identifier, result) in providerResults {
               if case .payAsYouGo(_, let cost, _) = result.usage {
@@ -1068,29 +1134,41 @@ final class StatusBarController: NSObject {
          
          var hasQuota = false
          
-         // Copilot Quota (always show if currentUsage exists)
-         if let copilotUsage = currentUsage {
-             hasQuota = true
-             let limit = copilotUsage.userPremiumRequestEntitlement
-             let used = copilotUsage.usedRequests
-             let remaining = limit - used
-             let percentage = limit > 0 ? (Double(remaining) / Double(limit)) * 100 : 0
-             let quotaItem = createQuotaMenuItem(identifier: .copilot, percentage: percentage)
-             quotaItem.tag = 999
-             menu.insertItem(quotaItem, at: insertIndex)
-             insertIndex += 1
-         }
+          // Copilot Quota (always show if currentUsage exists)
+          if let copilotUsage = currentUsage {
+              hasQuota = true
+              let limit = copilotUsage.userPremiumRequestEntitlement
+              let used = copilotUsage.usedRequests
+              let remaining = limit - used
+              let percentage = limit > 0 ? (Double(remaining) / Double(limit)) * 100 : 0
+              let quotaItem = createQuotaMenuItem(identifier: .copilot, percentage: percentage)
+              quotaItem.tag = 999
+              
+              let submenu = NSMenu()
+              submenu.addItem(NSMenuItem(title: String(format: "Used: %d / %d", used, limit), action: nil, keyEquivalent: ""))
+              submenu.addItem(NSMenuItem(title: String(format: "Remaining: %d", remaining), action: nil, keyEquivalent: ""))
+              submenu.addItem(NSMenuItem(title: String(format: "Free Quota: %d", limit), action: nil, keyEquivalent: ""))
+              quotaItem.submenu = submenu
+              
+              menu.insertItem(quotaItem, at: insertIndex)
+              insertIndex += 1
+          }
          
-         for (identifier, result) in providerResults {
-            if case .quotaBased(let remaining, let entitlement, _) = result.usage {
-                hasQuota = true
-                let percentage = entitlement > 0 ? (Double(remaining) / Double(entitlement)) * 100 : 0
-                let item = createQuotaMenuItem(identifier: identifier, percentage: percentage)
-                item.tag = 999
-                menu.insertItem(item, at: insertIndex)
-                insertIndex += 1
-            }
-        }
+          for (identifier, result) in providerResults {
+             if case .quotaBased(let remaining, let entitlement, _) = result.usage {
+                 hasQuota = true
+                 let percentage = entitlement > 0 ? (Double(remaining) / Double(entitlement)) * 100 : 0
+                 let item = createQuotaMenuItem(identifier: identifier, percentage: percentage)
+                 item.tag = 999
+                 
+                 if let details = result.details, details.hasAnyValue {
+                     item.submenu = createDetailSubmenu(details, identifier: identifier)
+                 }
+                 
+                 menu.insertItem(item, at: insertIndex)
+                 insertIndex += 1
+             }
+         }
         
         if !hasQuota {
             let noItem = NSMenuItem(title: "  No providers", action: nil, keyEquivalent: "")
@@ -1300,12 +1378,13 @@ final class StatusBarController: NSObject {
         }
     }
     
-    private func updateUIForSuccess(usage: CopilotUsage) {
-        statusBarIconView.update(used: usage.usedRequests, limit: usage.limitRequests, cost: usage.netBilledAmount)
-        usageView.update(usage: usage)
-        signInItem.isHidden = true
-        updateHistorySubmenu()
-    }
+     private func updateUIForSuccess(usage: CopilotUsage) {
+         statusBarIconView.update(used: usage.usedRequests, limit: usage.limitRequests, cost: usage.netBilledAmount)
+         usageView.update(usage: usage)
+         signInItem.isHidden = true
+         updateHistorySubmenu()
+         updateMultiProviderMenu()
+     }
     
     private func updateUIForLoggedOut() {
         statusBarIconView.showError()

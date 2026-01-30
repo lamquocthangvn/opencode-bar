@@ -24,8 +24,9 @@ final class ProviderManager {
             GeminiCLIProvider(),
             OpenRouterProvider(),
             OpenCodeProvider(),
-            AntigravityProvider(),
-            OpenCodeZenProvider()
+            // TODO: Fix blocking Process.waitUntilExit() in these providers
+            // AntigravityProvider(),
+            // OpenCodeZenProvider()
         ]
     }
     
@@ -69,9 +70,26 @@ final class ProviderManager {
                         await self.updateCache(identifier: provider.identifier, result: result)
                         
                         logger.info("✓ \(provider.identifier.displayName) fetch succeeded")
+                        
+                        // DEBUG: Write success to file
+                        let successMsg = "✓ \(provider.identifier.displayName) succeeded\n"
+                        if let data = successMsg.data(using: .utf8), let handle = FileHandle(forWritingAtPath: "/tmp/copilot_debug.log") {
+                            handle.seekToEndOfFile()
+                            handle.write(data)
+                            handle.closeFile()
+                        }
+                        
                         return (provider.identifier, result)
                     } catch {
                         logger.error("✗ \(provider.identifier.displayName) fetch failed: \(error.localizedDescription)")
+                        
+                        // DEBUG: Write to file
+                        let debugMsg = "✗ \(provider.identifier.displayName) failed: \(error.localizedDescription)\n"
+                        if let data = debugMsg.data(using: .utf8), let handle = FileHandle(forWritingAtPath: "/tmp/copilot_debug.log") {
+                            handle.seekToEndOfFile()
+                            handle.write(data)
+                            handle.closeFile()
+                        }
                         
                         // Try to use cached value as fallback
                         let cached = await self.getCache(identifier: provider.identifier)

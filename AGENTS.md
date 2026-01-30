@@ -25,6 +25,9 @@
 ## Instruction
 - Always compile and run again after each change, and then ask to the user to see it. (Kill the existing process before running)
 
+## How to get quota usage?
+- in `@/scripts/` directory, you can see all of the scripts for every providers to get quota usage.
+
 ## Release Policy
 - **Workflow**: STRICTLY follow `docs/RELEASE_WORKFLOW.md` for versioning, building, signing, and notarizing.
 - **Signing**: All DMGs distributed via GitHub Releases **MUST** be signed with Developer ID and **NOTARIZED** to pass macOS Gatekeeper.
@@ -48,17 +51,22 @@
   - Total Requests: Always sum both `includedRequests` AND `billedRequests` for accurate predictions
   - Prediction Algorithms: Use `totalRequests` (not just `included`) for weighted average calculations
   - UI Display: Show total requests in daily usage breakdown, not just included
-- **DMG Packaging Cleanliness**:
-  - Staging Directory: Create clean staging dir containing ONLY app bundle and Applications symlink
-  - Exclude Files: Prevent `Packaging.log`, `DistributionSummary.plist`, and other Xcode artifacts from DMG
-  - Pattern: `mkdir -p staging; cp -R app.app staging/; ln -s /Applications staging/`
-- **DerivedData Path Handling**:
-  - Wildcard Warning: Path `~/Library/Developer/Xcode/DerivedData/CopilotMonitor-*/Build/Products/Debug/CopilotMonitor.app` may break if multiple DerivedData directories exist
-  - Solution: Use `xcodebuild -showBuildSettings | grep BUILT_PRODUCTS_DIR` to get exact path, or open using `open` which finds the latest build
-- **Provider Type Classification**:
-  - API Structure Determines Type: Provider billing model must match API response structure
-  - Quota-based Indicators: `used_percent`, `remaining`, `entitlement` fields indicate quota-based model
-  - Pay-as-you-go Indicators: `credits`, `usage`, `utilization` fields indicate pay-as-you-go model
-  - Example Fix: Codex initially classified as pay-as-you-go, but API returns `used_percent` → corrected to quota-based
-  - Test Alignment: When fixing provider type, update corresponding tests to match new implementation
+ - **DMG Packaging Cleanliness**:
+   - Staging Directory: Create clean staging dir containing ONLY app bundle and Applications symlink
+   - Exclude Files: Prevent `Packaging.log`, `DistributionSummary.plist`, and other Xcode artifacts from DMG
+   - Pattern: `mkdir -p staging; cp -R app.app staging/; ln -s /Applications staging/`
+ - **DerivedData Path Handling**:
+   - Wildcard Warning: Path `~/Library/Developer/Xcode/DerivedData/CopilotMonitor-*/Build/Products/Debug/OpencodeProvidersMonitor.app` may break if multiple DerivedData directories exist
+   - Solution: Use `xcodebuild -showBuildSettings | grep BUILT_PRODUCTS_DIR` to get exact path, or open using `open` which finds the latest build
+  - **Provider Type Classification**:
+   - API Structure Determines Type: Provider billing model must match API response structure
+   - Quota-based Indicators: `used_percent`, `remaining`, `entitlement` fields indicate quota-based model
+   - Pay-as-you-go Indicators: `credits`, `usage`, `utilization` fields indicate pay-as-you-go model
+   - Example Fix: Codex initially classified as pay-as-you-go, but API returns `used_percent` → corrected to quota-based
+   - Test Alignment: When fixing provider type, update corresponding tests to match new implementation
+- **Menu Bar Item Lifecycle Management**:
+  - Hidden Items Keep Objects Alive: Use `isHidden = true` instead of commenting out to prevent nil reference crashes
+  - Implicitly Unwrapped Optionals: `NSMenuItem!` properties require initialization even if hidden from UI
+  - Example Failure: Commenting out menu items causes crashes when validation logic still references them
+  - Pattern: Always initialize menu items that may be referenced elsewhere, control visibility via `isHidden`
  <!-- opencode:reflection:end -->
