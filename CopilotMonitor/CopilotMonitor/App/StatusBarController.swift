@@ -1212,6 +1212,109 @@ final class StatusBarController: NSObject {
         return Date().timeIntervalSince(history.fetchedAt) > staleThreshold
     }
     
+    private func createCopilotHistorySubmenu() -> NSMenu {
+        let submenu = NSMenu()
+        let state = getHistoryUIState()
+        
+        if state.hasNoData {
+            let item = NSMenuItem(title: "No data", action: nil, keyEquivalent: "")
+            item.image = NSImage(systemSymbolName: "tray", accessibilityDescription: "No data")
+            item.isEnabled = false
+            submenu.addItem(item)
+            return submenu
+        }
+        
+        if let prediction = state.prediction {
+            let formatter = NumberFormatter()
+            formatter.numberStyle = .decimal
+            formatter.maximumFractionDigits = 0
+            
+            let monthlyText = "Predicted EOM: \(formatter.string(from: NSNumber(value: prediction.predictedMonthlyRequests)) ?? "0") requests"
+            let monthlyItem = NSMenuItem(title: monthlyText, action: nil, keyEquivalent: "")
+            monthlyItem.image = NSImage(systemSymbolName: "chart.line.uptrend.xyaxis", accessibilityDescription: "Predicted EOM")
+            monthlyItem.isEnabled = false
+            monthlyItem.attributedTitle = NSAttributedString(
+                string: monthlyText,
+                attributes: [.font: NSFont.boldSystemFont(ofSize: 13)]
+            )
+            submenu.addItem(monthlyItem)
+            
+            if prediction.predictedBilledAmount > 0 {
+                let costText = String(format: "Predicted Add-on: $%.2f", prediction.predictedBilledAmount)
+                let costItem = NSMenuItem(title: costText, action: nil, keyEquivalent: "")
+                costItem.image = NSImage(systemSymbolName: "dollarsign.circle", accessibilityDescription: "Predicted Add-on")
+                costItem.isEnabled = false
+                costItem.attributedTitle = NSAttributedString(
+                    string: costText,
+                    attributes: [
+                        .font: NSFont.boldSystemFont(ofSize: 13),
+                        .underlineStyle: NSUnderlineStyle.single.rawValue
+                    ]
+                )
+                submenu.addItem(costItem)
+            }
+            
+            if prediction.confidenceLevel == .low {
+                let confItem = NSMenuItem(title: "Low prediction accuracy", action: nil, keyEquivalent: "")
+                confItem.image = NSImage(systemSymbolName: "exclamationmark.triangle.fill", accessibilityDescription: "Low accuracy")
+                confItem.isEnabled = false
+                submenu.addItem(confItem)
+            } else if prediction.confidenceLevel == .medium {
+                let confItem = NSMenuItem(title: "Medium prediction accuracy", action: nil, keyEquivalent: "")
+                confItem.image = NSImage(systemSymbolName: "chart.bar.fill", accessibilityDescription: "Medium accuracy")
+                confItem.isEnabled = false
+                submenu.addItem(confItem)
+            }
+            
+            submenu.addItem(NSMenuItem.separator())
+        }
+        
+        if state.isStale {
+            let staleItem = NSMenuItem(title: "Data is stale", action: nil, keyEquivalent: "")
+            staleItem.image = NSImage(systemSymbolName: "clock.badge.exclamationmark", accessibilityDescription: "Data is stale")
+            staleItem.isEnabled = false
+            submenu.addItem(staleItem)
+        }
+        
+        if let history = state.history {
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "MMM d"
+            dateFormatter.timeZone = TimeZone(identifier: "UTC")
+            
+            var utcCalendar = Calendar(identifier: .gregorian)
+            utcCalendar.timeZone = TimeZone(identifier: "UTC")!
+            let today = utcCalendar.startOfDay(for: Date())
+            
+            let numberFormatter = NumberFormatter()
+            numberFormatter.numberStyle = .decimal
+            numberFormatter.maximumFractionDigits = 0
+            
+            for day in history.recentDays {
+                let dayStart = utcCalendar.startOfDay(for: day.date)
+                let isToday = dayStart == today
+                let dateStr = dateFormatter.string(from: day.date)
+                let reqStr = numberFormatter.string(from: NSNumber(value: day.totalRequests)) ?? "0"
+                let label = isToday ? "\(dateStr) (Today): \(reqStr) req" : "\(dateStr): \(reqStr) req"
+                
+                let item = NSMenuItem(title: label, action: nil, keyEquivalent: "")
+                item.isEnabled = false
+                item.attributedTitle = NSAttributedString(
+                    string: label,
+                    attributes: [.font: NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .regular)]
+                )
+                submenu.addItem(item)
+            }
+        }
+        
+        submenu.addItem(NSMenuItem.separator())
+        let predictionPeriodItem = NSMenuItem(title: "Prediction Period", action: nil, keyEquivalent: "")
+        predictionPeriodItem.image = NSImage(systemSymbolName: "gearshape", accessibilityDescription: "Prediction Period")
+        predictionPeriodItem.submenu = predictionPeriodMenu
+        submenu.addItem(predictionPeriodItem)
+        
+        return submenu
+    }
+    
     private func updateHistorySubmenu() {
         let state = getHistoryUIState()
         historySubmenu.removeAllItems()
