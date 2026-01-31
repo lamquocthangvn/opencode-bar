@@ -275,7 +275,8 @@ extension StatusBarController {
             let authItem = NSMenuItem()
             authItem.view = createDisabledLabelView(
                 text: "Token From: \(authSource)",
-                icon: NSImage(systemSymbolName: "key", accessibilityDescription: "Auth Source")
+                icon: NSImage(systemSymbolName: "key", accessibilityDescription: "Auth Source"),
+                multiline: true
             )
             submenu.addItem(authItem)
         }

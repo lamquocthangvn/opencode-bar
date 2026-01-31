@@ -737,7 +737,8 @@ final class StatusBarController: NSObject {
                 let authItem = NSMenuItem()
                 authItem.view = createDisabledLabelView(
                     text: "Token From: Browser Cookies (Chrome/Brave/Arc/Edge)",
-                    icon: NSImage(systemSymbolName: "key", accessibilityDescription: "Auth Source")
+                    icon: NSImage(systemSymbolName: "key", accessibilityDescription: "Auth Source"),
+                    multiline: true
                 )
                 submenu.addItem(authItem)
                 
@@ -1017,33 +1018,46 @@ final class StatusBarController: NSObject {
         icon: NSImage? = nil,
         font: NSFont? = nil,
         underline: Bool = false,
-        monospaced: Bool = false
+        monospaced: Bool = false,
+        multiline: Bool = false
     ) -> NSView {
-        let view = NSView(frame: NSRect(x: 0, y: 0, width: 280, height: 22))
-        
         var leadingOffset: CGFloat = 14
+        let menuWidth: CGFloat = 300
+        let labelFont = font ?? (monospaced ? NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .regular) : NSFont.systemFont(ofSize: 13))
+        
+        if icon != nil {
+            leadingOffset = 36
+        }
+        
+        let availableWidth = menuWidth - leadingOffset - 14
+        var viewHeight: CGFloat = 22
+        
+        if multiline {
+            let size = NSSize(width: availableWidth, height: .greatestFiniteMagnitude)
+            let rect = (text as NSString).boundingRect(
+                with: size,
+                options: [.usesLineFragmentOrigin, .usesFontLeading],
+                attributes: [.font: labelFont]
+            )
+            viewHeight = max(22, ceil(rect.height) + 8)
+        }
+        
+        let view = NSView(frame: NSRect(x: 0, y: 0, width: menuWidth, height: viewHeight))
         
         if let icon = icon {
-            let imageView = NSImageView(frame: NSRect(x: 14, y: 3, width: 16, height: 16))
+            let iconY = multiline ? viewHeight - 19 : 3
+            let imageView = NSImageView(frame: NSRect(x: 14, y: iconY, width: 16, height: 16))
             imageView.image = icon
             imageView.imageScaling = .scaleProportionallyUpOrDown
             view.addSubview(imageView)
-            leadingOffset = 36
         }
         
         let label = NSTextField(labelWithString: "")
         
         var attrs: [NSAttributedString.Key: Any] = [
-            .foregroundColor: NSColor.secondaryLabelColor
+            .foregroundColor: NSColor.secondaryLabelColor,
+            .font: labelFont
         ]
-        
-        if let customFont = font {
-            attrs[.font] = customFont
-        } else if monospaced {
-            attrs[.font] = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .regular)
-        } else {
-            attrs[.font] = NSFont.systemFont(ofSize: 13)
-        }
         
         if underline {
             attrs[.underlineStyle] = NSUnderlineStyle.single.rawValue
@@ -1052,12 +1066,27 @@ final class StatusBarController: NSObject {
         label.attributedStringValue = NSAttributedString(string: text, attributes: attrs)
         label.translatesAutoresizingMaskIntoConstraints = false
         
+        if multiline {
+            label.lineBreakMode = .byWordWrapping
+            label.maximumNumberOfLines = 0
+            label.preferredMaxLayoutWidth = availableWidth
+        }
+        
         view.addSubview(label)
         
-        NSLayoutConstraint.activate([
-            label.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: leadingOffset),
-            label.centerYAnchor.constraint(equalTo: view.centerYAnchor)
-        ])
+        if multiline {
+            NSLayoutConstraint.activate([
+                label.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: leadingOffset),
+                label.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -14),
+                label.topAnchor.constraint(equalTo: view.topAnchor, constant: 4),
+                label.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -4)
+            ])
+        } else {
+            NSLayoutConstraint.activate([
+                label.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: leadingOffset),
+                label.centerYAnchor.constraint(equalTo: view.centerYAnchor)
+            ])
+        }
         
         return view
     }
@@ -1528,12 +1557,12 @@ final class StatusBarController: NSObject {
         periodItem.submenu = periodSubmenu
         submenu.addItem(periodItem)
         
-        // Token From info
         submenu.addItem(NSMenuItem.separator())
         let authItem = NSMenuItem()
         authItem.view = createDisabledLabelView(
             text: "Token From: ~/.local/share/opencode/auth.json",
-            icon: NSImage(systemSymbolName: "key", accessibilityDescription: "Auth Source")
+            icon: NSImage(systemSymbolName: "key", accessibilityDescription: "Auth Source"),
+            multiline: true
         )
         submenu.addItem(authItem)
         
