@@ -22,10 +22,15 @@
   - You can use color for text which is right-aligned text only.
 - Others
   - **Never use random spaces for separating label**
-    - BEST: "OpenRouter", Additional Label on the right with right-aligned text: "$37.42"
+    - BEST:
+      - Left: "OpenRouter"
+      - Right: "$37.42" - Additional Custom View Label on the right with right-aligned text (by offset calculating)
     - OK: "OpenRouter: $37.42"
     - OK: "OpenRouter ($37.42)"
     - NO: "OpenRouter    $37.42" (stupid random spaces)
+
+### Explicit 'used' or 'left'
+- To avoid confusing of used % or left %, explicit if it's used or left on every labels.
 
 ### Menu Item Layout Constants (MUST follow strictly)
 All custom menu item views MUST use these exact pixel values for consistency:
