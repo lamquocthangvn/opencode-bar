@@ -148,7 +148,8 @@ final class ClaudeProvider: ProviderProtocol {
                 sevenDayReset: sevenDayReset,
                 sonnetUsage: sonnetUsage,
                 opusUsage: opusUsage,
-                extraUsageEnabled: extraUsageEnabled
+                extraUsageEnabled: extraUsageEnabled,
+                authSource: "~/.local/share/opencode/auth.json"
             )
             
             return ProviderResult(usage: usage, details: details)

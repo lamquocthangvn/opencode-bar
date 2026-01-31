@@ -724,9 +724,6 @@ final class StatusBarController: NSObject {
                let overageItem = NSMenuItem()
                overageItem.view = createDisabledLabelView(text: String(format: "Overage Requests: %.0f", copilotUsage.netQuantity))
                submenu.addItem(overageItem)
-               let billedItem = NSMenuItem()
-               billedItem.view = createDisabledLabelView(text: String(format: "Billed Amount: $%.2f", copilotUsage.netBilledAmount))
-               submenu.addItem(billedItem)
                
                  submenu.addItem(NSMenuItem.separator())
                  let historyItem = NSMenuItem(title: "Usage History", action: nil, keyEquivalent: "")
@@ -735,6 +732,14 @@ final class StatusBarController: NSObject {
                  historyItem.submenu = createCopilotHistorySubmenu()
                  debugLog("updateMultiProviderMenu: createCopilotHistorySubmenu completed")
                  submenu.addItem(historyItem)
+                
+                submenu.addItem(NSMenuItem.separator())
+                let authItem = NSMenuItem()
+                authItem.view = createDisabledLabelView(
+                    text: "Token From: Browser Cookies (Chrome/Brave/Arc/Edge)",
+                    icon: NSImage(systemSymbolName: "key", accessibilityDescription: "Auth Source")
+                )
+                submenu.addItem(authItem)
                 
                 addOnItem.submenu = submenu
                 
@@ -785,6 +790,10 @@ final class StatusBarController: NSObject {
             insertIndex += 1
         }
         
+        if hasPayAsYouGo {
+            insertIndex = insertPredictedEOMSection(at: insertIndex)
+        }
+        
         let separator2 = NSMenuItem.separator()
         separator2.tag = 999
         menu.insertItem(separator2, at: insertIndex)
@@ -805,7 +814,16 @@ final class StatusBarController: NSObject {
               let used = copilotUsage.usedRequests
               let remaining = limit - used
               let percentage = limit > 0 ? (Double(remaining) / Double(limit)) * 100 : 0
-              let quotaItem = createQuotaMenuItem(identifier: .copilot, percentage: percentage)
+              
+              let quotaItem = NSMenuItem(
+                  title: String(format: "Copilot    %.0f%% remaining", percentage),
+                  action: nil,
+                  keyEquivalent: ""
+              )
+              quotaItem.image = iconForProvider(.copilot)
+              if percentage < 20 {
+                  quotaItem.image = tintedImage(iconForProvider(.copilot), color: .systemRed)
+              }
               quotaItem.tag = 999
               
               let submenu = NSMenu()
@@ -877,6 +895,42 @@ final class StatusBarController: NSObject {
             statusBarIconView.update(used: usage.usedRequests, limit: usage.limitRequests, cost: totalCost)
         }
         debugLog("updateMultiProviderMenu: completed successfully")
+        logMenuStructure()
+    }
+    
+    private func logMenuStructure() {
+        var output = "\n========== MENU STRUCTURE ==========\n"
+        for (index, item) in menu.items.enumerated() {
+            output += logMenuItem(item, depth: 0, index: index)
+        }
+        output += "====================================\n"
+        debugLog(output)
+    }
+    
+    private func logMenuItem(_ item: NSMenuItem, depth: Int, index: Int) -> String {
+        let indent = String(repeating: "  ", count: depth)
+        var line = ""
+        
+        if item.isSeparatorItem {
+            line = "\(indent)[\(index)] ─────────────\n"
+        } else if let view = item.view {
+            let viewType = String(describing: type(of: view))
+            if let label = view.subviews.compactMap({ $0 as? NSTextField }).first {
+                line = "\(indent)[\(index)] [VIEW:\(viewType)] \(label.stringValue)\n"
+            } else {
+                line = "\(indent)[\(index)] [VIEW:\(viewType)]\n"
+            }
+        } else {
+            line = "\(indent)[\(index)] \(item.title)\n"
+        }
+        
+        if let submenu = item.submenu {
+            for (subIndex, subItem) in submenu.items.enumerated() {
+                line += logMenuItem(subItem, depth: depth + 1, index: subIndex)
+            }
+        }
+        
+        return line
     }
     
     private func createPayAsYouGoMenuItem(identifier: ProviderIdentifier, utilization: Double) -> NSMenuItem {
@@ -1291,6 +1345,205 @@ final class StatusBarController: NSObject {
     }
     
 
+    // MARK: - Predicted EOM Section (Aggregated Pay-as-you-go)
+    
+    private func insertPredictedEOMSection(at index: Int) -> Int {
+        var insertIndex = index
+        
+        // Collect daily cost data from all Pay-as-you-go providers
+        var aggregatedDailyCosts: [Date: [ProviderIdentifier: Double]] = [:]
+        
+        // 1. Copilot Add-on history
+        if let history = usageHistory {
+            for day in history.days {
+                let dateKey = Calendar.current.startOfDay(for: day.date)
+                if aggregatedDailyCosts[dateKey] == nil {
+                    aggregatedDailyCosts[dateKey] = [:]
+                }
+                aggregatedDailyCosts[dateKey]?[.copilot] = day.billedAmount
+            }
+        }
+        
+        // 2. OpenCode Zen history
+        if let zenResult = providerResults[.openCodeZen],
+           let details = zenResult.details,
+           let zenHistory = details.dailyHistory {
+            for day in zenHistory {
+                let dateKey = Calendar.current.startOfDay(for: day.date)
+                if aggregatedDailyCosts[dateKey] == nil {
+                    aggregatedDailyCosts[dateKey] = [:]
+                }
+                aggregatedDailyCosts[dateKey]?[.openCodeZen] = day.billedAmount
+            }
+        }
+        
+        // 3. OpenRouter - only has current cost, no daily history
+        // We'll include today's cost if available
+        if let routerResult = providerResults[.openRouter],
+           case .payAsYouGo(_, let cost, _) = routerResult.usage,
+           let dailyCost = routerResult.details?.dailyUsage {
+            let today = Calendar.current.startOfDay(for: Date())
+            if aggregatedDailyCosts[today] == nil {
+                aggregatedDailyCosts[today] = [:]
+            }
+            aggregatedDailyCosts[today]?[.openRouter] = dailyCost
+        }
+        
+        // If no data, skip this section
+        guard !aggregatedDailyCosts.isEmpty else {
+            return insertIndex
+        }
+        
+        // Calculate predicted EOM
+        let calendar = Calendar.current
+        let today = Date()
+        let currentDay = calendar.component(.day, from: today)
+        let daysInMonth = calendar.range(of: .day, in: .month, for: today)?.count ?? 30
+        let remainingDays = daysInMonth - currentDay
+        
+        // Get daily totals for prediction period
+        let sortedDates = aggregatedDailyCosts.keys.sorted(by: >)
+        let recentDays = Array(sortedDates.prefix(predictionPeriod.rawValue))
+        
+        var totalCostSoFar = 0.0
+        var dailyTotals: [(date: Date, total: Double, breakdown: [ProviderIdentifier: Double])] = []
+        
+        for date in recentDays {
+            if let providers = aggregatedDailyCosts[date] {
+                let dayTotal = providers.values.reduce(0, +)
+                totalCostSoFar += dayTotal
+                dailyTotals.append((date: date, total: dayTotal, breakdown: providers))
+            }
+        }
+        
+        // Calculate weighted average daily cost
+        let weights = predictionPeriod.weights
+        var weightedSum = 0.0
+        var weightTotal = 0.0
+        
+        for (index, dayData) in dailyTotals.enumerated() {
+            let weight = index < weights.count ? weights[index] : 1.0
+            weightedSum += dayData.total * weight
+            weightTotal += weight
+        }
+        
+        let avgDailyCost = weightTotal > 0 ? weightedSum / weightTotal : 0.0
+        
+        // Calculate current month total (sum all days in current month)
+        let currentMonthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: today))!
+        var currentMonthTotal = 0.0
+        for (date, providers) in aggregatedDailyCosts {
+            if date >= currentMonthStart {
+                currentMonthTotal += providers.values.reduce(0, +)
+            }
+        }
+        
+        let predictedEOM = currentMonthTotal + (avgDailyCost * Double(remainingDays))
+        
+        // Create Predicted EOM menu item
+        let eomItem = NSMenuItem(
+            title: String(format: "Predicted EOM: $%.0f", predictedEOM),
+            action: nil,
+            keyEquivalent: ""
+        )
+        eomItem.image = NSImage(systemSymbolName: "chart.line.uptrend.xyaxis", accessibilityDescription: "Predicted EOM")
+        eomItem.tag = 999
+        
+        // Create submenu with daily breakdown
+        let submenu = NSMenu()
+        
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "MMM d (EEE)"
+        
+        var utcCalendar = Calendar(identifier: .gregorian)
+        utcCalendar.timeZone = TimeZone(identifier: "UTC")!
+        let todayStart = utcCalendar.startOfDay(for: today)
+        
+        // Sort dailyTotals by date descending
+        let sortedDailyTotals = dailyTotals.sorted { $0.date > $1.date }
+        
+        for dayData in sortedDailyTotals.prefix(predictionPeriod.rawValue) {
+            let dayStart = utcCalendar.startOfDay(for: dayData.date)
+            let isToday = dayStart == todayStart
+            let dateStr = dateFormatter.string(from: dayData.date)
+            
+            let costStr: String
+            if dayData.total < 0.01 {
+                costStr = "Zero"
+            } else {
+                costStr = String(format: "$%.2f", dayData.total)
+            }
+            
+            let label = isToday ? "\(dateStr): \(costStr) (Today)" : "\(dateStr): \(costStr)"
+            
+            // Create day item with provider breakdown submenu
+            let dayItem = NSMenuItem(title: label, action: nil, keyEquivalent: "")
+            dayItem.tag = 999
+            
+            // Only add submenu if there's more than one provider or any cost
+            if dayData.breakdown.count > 0 {
+                let breakdownSubmenu = NSMenu()
+                
+                // Sort by provider display order
+                let providerOrder: [ProviderIdentifier] = [.openCodeZen, .openRouter, .copilot]
+                for provider in providerOrder {
+                    if let cost = dayData.breakdown[provider] {
+                        let providerLabel: String
+                        if cost < 0.01 {
+                            providerLabel = "\(provider.displayName): Zero"
+                        } else {
+                            providerLabel = String(format: "%@: $%.2f", provider.displayName, cost)
+                        }
+                        let providerItem = NSMenuItem()
+                        providerItem.view = createDisabledLabelView(
+                            text: providerLabel,
+                            icon: iconForProvider(provider)
+                        )
+                        breakdownSubmenu.addItem(providerItem)
+                    }
+                }
+                
+                dayItem.submenu = breakdownSubmenu
+            }
+            
+            submenu.addItem(dayItem)
+        }
+        
+        // Add separator before settings
+        submenu.addItem(NSMenuItem.separator())
+        
+        // Prediction Period submenu
+        let periodItem = NSMenuItem(title: "Prediction Period", action: nil, keyEquivalent: "")
+        periodItem.image = NSImage(systemSymbolName: "gearshape", accessibilityDescription: "Prediction Period")
+        
+        // Create a fresh submenu for prediction period to avoid deadlock
+        let periodSubmenu = NSMenu()
+        for period in PredictionPeriod.allCases {
+            let item = NSMenuItem(title: period.title, action: #selector(predictionPeriodSelected(_:)), keyEquivalent: "")
+            item.target = self
+            item.tag = period.rawValue
+            item.state = (period.rawValue == predictionPeriod.rawValue) ? .on : .off
+            periodSubmenu.addItem(item)
+        }
+        periodItem.submenu = periodSubmenu
+        submenu.addItem(periodItem)
+        
+        // Token From info
+        submenu.addItem(NSMenuItem.separator())
+        let authItem = NSMenuItem()
+        authItem.view = createDisabledLabelView(
+            text: "Token From: ~/.local/share/opencode/auth.json",
+            icon: NSImage(systemSymbolName: "key", accessibilityDescription: "Auth Source")
+        )
+        submenu.addItem(authItem)
+        
+        eomItem.submenu = submenu
+        menu.insertItem(eomItem, at: insertIndex)
+        insertIndex += 1
+        
+        return insertIndex
+    }
+    
     private func updateHistorySubmenu() {
         debugLog("updateHistorySubmenu: started")
         let state = getHistoryUIState()

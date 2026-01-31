@@ -14,16 +14,6 @@ extension StatusBarController {
                 item.view = createDisabledLabelView(text: String(format: "Credits: $%.0f/$%.0f (%.0f%%)", remaining, total, percent))
                 submenu.addItem(item)
             }
-            if let daily = details.dailyUsage {
-                let item = NSMenuItem()
-                item.view = createDisabledLabelView(text: String(format: "Daily: $%.2f", daily))
-                submenu.addItem(item)
-            }
-            if let weekly = details.weeklyUsage {
-                let item = NSMenuItem()
-                item.view = createDisabledLabelView(text: String(format: "Weekly: $%.2f", weekly))
-                submenu.addItem(item)
-            }
             
         case .openCodeZen:
             if let avg = details.avgCostPerDay {
@@ -280,6 +270,16 @@ extension StatusBarController {
             submenu.addItem(item)
         }
         
+        if let authSource = details.authSource {
+            submenu.addItem(NSMenuItem.separator())
+            let authItem = NSMenuItem()
+            authItem.view = createDisabledLabelView(
+                text: "Token From: \(authSource)",
+                icon: NSImage(systemSymbolName: "key", accessibilityDescription: "Auth Source")
+            )
+            submenu.addItem(authItem)
+        }
+        
         return submenu
     }
     
@@ -301,56 +301,6 @@ extension StatusBarController {
             return submenu
         }
         debugLog("createCopilotHistorySubmenu: hasNoData=false, continuing")
-        
-        if let prediction = state.prediction {
-            debugLog("createCopilotHistorySubmenu: prediction exists")
-            let formatter = NumberFormatter()
-            formatter.numberStyle = .decimal
-            formatter.maximumFractionDigits = 0
-            
-            let monthlyText = "Predicted EOM: \(formatter.string(from: NSNumber(value: prediction.predictedMonthlyRequests)) ?? "0") requests"
-            let monthlyItem = NSMenuItem()
-            monthlyItem.view = createDisabledLabelView(
-                text: monthlyText,
-                icon: NSImage(systemSymbolName: "chart.line.uptrend.xyaxis", accessibilityDescription: "Predicted EOM"),
-                font: NSFont.boldSystemFont(ofSize: 13)
-            )
-            submenu.addItem(monthlyItem)
-            
-            if prediction.predictedBilledAmount > 0 {
-                let costText = String(format: "Predicted Add-on: $%.2f", prediction.predictedBilledAmount)
-                let costItem = NSMenuItem()
-                costItem.view = createDisabledLabelView(
-                    text: costText,
-                    icon: NSImage(systemSymbolName: "dollarsign.circle", accessibilityDescription: "Predicted Add-on"),
-                    font: NSFont.boldSystemFont(ofSize: 13),
-                    underline: true
-                )
-                submenu.addItem(costItem)
-            }
-            
-            if prediction.confidenceLevel == .low {
-                let confItem = NSMenuItem()
-                confItem.view = createDisabledLabelView(
-                    text: "Low prediction accuracy",
-                    icon: NSImage(systemSymbolName: "exclamationmark.triangle.fill", accessibilityDescription: "Low accuracy")
-                )
-                submenu.addItem(confItem)
-            } else if prediction.confidenceLevel == .medium {
-                let confItem = NSMenuItem()
-                confItem.view = createDisabledLabelView(
-                    text: "Medium prediction accuracy",
-                    icon: NSImage(systemSymbolName: "chart.bar.fill", accessibilityDescription: "Medium accuracy")
-                )
-                submenu.addItem(confItem)
-            }
-            
-            debugLog("createCopilotHistorySubmenu: adding separator after prediction")
-            submenu.addItem(NSMenuItem.separator())
-            debugLog("createCopilotHistorySubmenu: separator added")
-        } else {
-            debugLog("createCopilotHistorySubmenu: no prediction")
-        }
         
         if state.isStale {
             debugLog("createCopilotHistorySubmenu: data is stale")
@@ -381,8 +331,14 @@ extension StatusBarController {
                 let dayStart = utcCalendar.startOfDay(for: day.date)
                 let isToday = dayStart == today
                 let dateStr = dateFormatter.string(from: day.date)
-                let reqStr = numberFormatter.string(from: NSNumber(value: day.totalRequests)) ?? "0"
-                let label = isToday ? "\(dateStr) (Today): \(reqStr) req" : "\(dateStr): \(reqStr) req"
+                let billedAmount = day.billedAmount
+                let overageReq = Int(day.billedRequests)
+                let label: String
+                if isToday {
+                    label = String(format: "%@ (Today): %d overage ($%.2f)", dateStr, overageReq, billedAmount)
+                } else {
+                    label = String(format: "%@: %d overage ($%.2f)", dateStr, overageReq, billedAmount)
+                }
                 
                 let item = NSMenuItem()
                 item.view = createDisabledLabelView(text: label, monospaced: true)
@@ -392,26 +348,8 @@ extension StatusBarController {
         } else {
             debugLog("createCopilotHistorySubmenu: no history")
         }
-        
-         debugLog("createCopilotHistorySubmenu: adding final separator and prediction period menu")
-         submenu.addItem(NSMenuItem.separator())
-         let predictionPeriodItem = NSMenuItem(title: "Prediction Period", action: nil, keyEquivalent: "")
-         predictionPeriodItem.image = NSImage(systemSymbolName: "gearshape", accessibilityDescription: "Prediction Period")
-         debugLog("createCopilotHistorySubmenu: creating new prediction period submenu")
          
-         // Create a new submenu instead of referencing the shared one to avoid deadlock
-         let periodSubmenu = NSMenu()
-         for period in PredictionPeriod.allCases {
-             let item = NSMenuItem(title: period.title, action: #selector(predictionPeriodSelected(_:)), keyEquivalent: "")
-             item.target = self
-             item.tag = period.rawValue
-             periodSubmenu.addItem(item)
-         }
-         predictionPeriodItem.submenu = periodSubmenu
-         debugLog("createCopilotHistorySubmenu: prediction period submenu created")
-         submenu.addItem(predictionPeriodItem)
          debugLog("createCopilotHistorySubmenu: completed successfully")
-         
          return submenu
     }
 }

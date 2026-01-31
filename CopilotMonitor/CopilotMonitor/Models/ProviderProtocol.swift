@@ -31,7 +31,7 @@ enum ProviderIdentifier: String, CaseIterable {
     var displayName: String {
         switch self {
         case .copilot:
-            return "GitHub Copilot"
+            return "Copilot Add-on"
         case .claude:
             return "Claude"
         case .codex:

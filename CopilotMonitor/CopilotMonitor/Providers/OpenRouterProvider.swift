@@ -77,7 +77,8 @@ final class OpenRouterProvider: ProviderProtocol {
             resetPeriod: keyResponse.data.limit_reset,
             monthlyCost: monthlyCost,
             creditsRemaining: remainingCredits,
-            creditsTotal: creditsResponse.data.total_credits
+            creditsTotal: creditsResponse.data.total_credits,
+            authSource: "~/.local/share/opencode/auth.json"
         )
         
         return ProviderResult(

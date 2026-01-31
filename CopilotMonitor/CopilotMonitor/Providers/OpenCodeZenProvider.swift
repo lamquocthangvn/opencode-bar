@@ -123,7 +123,8 @@ final class OpenCodeZenProvider: ProviderProtocol {
             messages: stats.messages,
             avgCostPerDay: stats.avgCostPerDay,
             dailyHistory: cachedHistory,
-            monthlyCost: stats.totalCost
+            monthlyCost: stats.totalCost,
+            authSource: "~/.opencode/bin/opencode (CLI)"
         )
         
         return ProviderResult(

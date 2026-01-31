@@ -278,7 +278,8 @@ final class AntigravityProvider: ProviderProtocol {
         let details = DetailedUsage(
             modelBreakdown: modelBreakdown,
             planType: plan,
-            email: email
+            email: email,
+            authSource: "Antigravity Local Server (localhost)"
         )
         
         // Return as quota-based usage

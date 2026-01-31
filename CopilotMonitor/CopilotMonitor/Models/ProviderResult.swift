@@ -55,6 +55,9 @@ struct DetailedUsage {
     let creditsRemaining: Double?
     let creditsTotal: Double?
     
+    // Authentication source info (displayed as "Token From:" or "Cookies From:")
+    let authSource: String?
+    
     init(
         dailyUsage: Double? = nil,
         weeklyUsage: Double? = nil,
@@ -84,7 +87,8 @@ struct DetailedUsage {
         dailyHistory: [DailyUsage]? = nil,
         monthlyCost: Double? = nil,
         creditsRemaining: Double? = nil,
-        creditsTotal: Double? = nil
+        creditsTotal: Double? = nil,
+        authSource: String? = nil
     ) {
         self.dailyUsage = dailyUsage
         self.weeklyUsage = weeklyUsage
@@ -115,6 +119,7 @@ struct DetailedUsage {
         self.monthlyCost = monthlyCost
         self.creditsRemaining = creditsRemaining
         self.creditsTotal = creditsTotal
+        self.authSource = authSource
     }
 }
 
@@ -128,6 +133,7 @@ extension DetailedUsage: Codable {
         case creditsBalance, planType, extraUsageEnabled
         case sessions, messages, avgCostPerDay, email
         case dailyHistory, monthlyCost, creditsRemaining, creditsTotal
+        case authSource
     }
     
     init(from decoder: Decoder) throws {
@@ -161,6 +167,7 @@ extension DetailedUsage: Codable {
         monthlyCost = try container.decodeIfPresent(Double.self, forKey: .monthlyCost)
         creditsRemaining = try container.decodeIfPresent(Double.self, forKey: .creditsRemaining)
         creditsTotal = try container.decodeIfPresent(Double.self, forKey: .creditsTotal)
+        authSource = try container.decodeIfPresent(String.self, forKey: .authSource)
     }
     
     func encode(to encoder: Encoder) throws {
@@ -194,6 +201,7 @@ extension DetailedUsage: Codable {
         try container.encodeIfPresent(monthlyCost, forKey: .monthlyCost)
         try container.encodeIfPresent(creditsRemaining, forKey: .creditsRemaining)
         try container.encodeIfPresent(creditsTotal, forKey: .creditsTotal)
+        try container.encodeIfPresent(authSource, forKey: .authSource)
     }
 }
 
@@ -213,5 +221,6 @@ extension DetailedUsage {
             || email != nil
             || dailyHistory != nil || monthlyCost != nil
             || creditsRemaining != nil || creditsTotal != nil
+            || authSource != nil
     }
 }

@@ -64,7 +64,10 @@ final class CopilotProvider: ProviderProtocol {
         )
         return ProviderResult(
             usage: providerUsage,
-            details: DetailedUsage(dailyHistory: dailyHistory)
+            details: DetailedUsage(
+                dailyHistory: dailyHistory,
+                authSource: "Browser Cookies (Chrome/Brave/Arc/Edge)"
+            )
         )
     }
     

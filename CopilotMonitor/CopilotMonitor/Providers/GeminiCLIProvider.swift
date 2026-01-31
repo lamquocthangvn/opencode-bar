@@ -118,7 +118,10 @@ final class GeminiCLIProvider: ProviderProtocol {
             )
             
             // Create DetailedUsage with per-model breakdown
-            let details = DetailedUsage(modelBreakdown: modelBreakdown)
+            let details = DetailedUsage(
+                modelBreakdown: modelBreakdown,
+                authSource: "~/.config/opencode/antigravity-accounts.json"
+            )
             return ProviderResult(usage: usage, details: details)
         } catch let error as DecodingError {
             logger.error("Failed to decode Gemini response: \(error.localizedDescription)")

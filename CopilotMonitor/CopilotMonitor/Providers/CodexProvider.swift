@@ -119,7 +119,8 @@ final class CodexProvider: ProviderProtocol {
             secondaryReset: secondaryResetDate,
             primaryReset: primaryResetDate,
             creditsBalance: codexResponse.credits?.balanceAsDouble,
-            planType: codexResponse.plan_type
+            planType: codexResponse.plan_type,
+            authSource: "~/.local/share/opencode/auth.json"
         )
         
         let usage = ProviderUsage.quotaBased(remaining: remaining, entitlement: entitlement, overagePermitted: false)
