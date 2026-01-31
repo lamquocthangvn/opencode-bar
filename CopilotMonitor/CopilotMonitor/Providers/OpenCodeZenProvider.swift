@@ -349,7 +349,9 @@ final class OpenCodeZenProvider: ProviderProtocol {
             process.standardOutput = pipe
             process.standardError = pipe
 
-            var outputData = Data()
+            // Use nonisolated(unsafe) to allow mutation in concurrent handlers
+            // This is safe because the handlers are serialized by the Process lifecycle
+            nonisolated(unsafe) var outputData = Data()
 
             pipe.fileHandleForReading.readabilityHandler = { handle in
                 let data = handle.availableData
