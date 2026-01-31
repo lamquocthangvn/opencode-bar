@@ -7,14 +7,48 @@
 
 ### UI Styling Rules
 - **No colors for text emphasis**: Do NOT use `NSColor` attributes like `.foregroundColor` for menu items or labels.
-- **Do not use hex color**: Use pre-defined colors by system.
+- **DO NOT USE SPACES TO ALIGN TEXT**: Don't use spaces like "   Words:" to align the spacing.
 - **Use instead**:
   - **Bold**: `NSFont.boldSystemFont(ofSize:)` for important text
   - **Underline**: `.underlineStyle: NSUnderlineStyle.single.rawValue` for critical warnings
   - **SF Symbols**: Use `NSImage(systemSymbolName:accessibilityDescription:)` for menu item icons
+  - **Emphasis**: Use system colors like secondaryLabelColor and etc.
+  - **Offset**: Use offset for aligning text with other items and lines. Use the below constants.
 - **Do NOT use**:
   - **Emoji**: Never use emoji for menu item icons. Always use SF Symbols instead.
-- **Exception**: Progress bars and status indicators can use color (green/yellow/orange/red).
+  - **RGB color**: Use only pre-defined colors by system (systemGreen, systemOrange, and etc) to consider dark/light mode compatiblity.
+- **Exception**:
+  - While you can't use color for text, progress bars and status indicators can use system color.
+  - You can use color for text which is right-aligned text only.
+
+### Menu Item Layout Constants (MUST follow strictly)
+All custom menu item views MUST use these exact pixel values for consistency:
+```swift
+// Standard dimensions
+let menuWidth: CGFloat = 300
+let itemHeight: CGFloat = 22
+let fontSize: CGFloat = 13
+
+// Horizontal spacing
+let leadingOffset: CGFloat = 14      // Left margin for text (no icon)
+let leadingWithIcon: CGFloat = 36    // Left margin when icon present
+let trailingMargin: CGFloat = 14     // Right margin
+
+// Vertical spacing  
+let textYOffset: CGFloat = 3         // Y position for single-line text
+let iconYOffset: CGFloat = 3         // Y position for icons
+
+// Icon dimensions
+let iconSize: CGFloat = 16           // Standard SF Symbol size
+let statusDotSize: CGFloat = 8       // Status indicator dot (circle.fill)
+
+// Right-aligned elements position
+let rightElementX: CGFloat = menuWidth - trailingMargin - iconSize  // = 270
+```
+- **NEVER** hardcode different pixel values in custom views
+- **ALWAYS** reuse `createDisabledLabelView()` when possible instead of creating custom NSView
+- When creating custom views, reference these constants to ensure alignment matches standard menu items
+- **MUST** update this section if you need to define new custom spacing, margin, dimensions rules.
 
 ### Instruction of each task
 - In all changes, always write debugging log for actually printing before you confirming the feature is fully functional.

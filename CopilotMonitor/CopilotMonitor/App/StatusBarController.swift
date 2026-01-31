@@ -1079,9 +1079,10 @@ final class StatusBarController: NSObject {
         font: NSFont? = nil,
         underline: Bool = false,
         monospaced: Bool = false,
-        multiline: Bool = false
+        multiline: Bool = false,
+        indent: CGFloat = 0
     ) -> NSView {
-        var leadingOffset: CGFloat = 14
+        var leadingOffset: CGFloat = 14 + indent
         let menuWidth: CGFloat = 300
         let labelFont = font ?? (monospaced ? NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .regular) : NSFont.systemFont(ofSize: 13))
         

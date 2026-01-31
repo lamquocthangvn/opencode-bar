@@ -3,46 +3,67 @@ import os.log
 
 private let logger = Logger(subsystem: "com.opencodeproviders", category: "AntigravityProvider")
 
-private func runCommandAsync(executableURL: URL, arguments: [String]) async throws -> String {
-    return try await withCheckedThrowingContinuation { continuation in
+private func runCommandAsync(executableURL: URL, arguments: [String], timeout: TimeInterval = 60.0) async throws -> String {
+    return try await withThrowingTaskGroup(of: String.self) { group in
         let process = Process()
         process.executableURL = executableURL
         process.arguments = arguments
         
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = pipe
-        
-        var outputData = Data()
-        
-        pipe.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            if !data.isEmpty {
-                outputData.append(data)
+        group.addTask {
+            try await withCheckedThrowingContinuation { continuation in
+                let pipe = Pipe()
+                process.standardOutput = pipe
+                process.standardError = pipe
+                
+                var outputData = Data()
+                
+                pipe.fileHandleForReading.readabilityHandler = { handle in
+                    let data = handle.availableData
+                    if !data.isEmpty {
+                        outputData.append(data)
+                    }
+                }
+                
+                process.terminationHandler = { _ in
+                    pipe.fileHandleForReading.readabilityHandler = nil
+                    
+                    let remainingData = pipe.fileHandleForReading.readDataToEndOfFile()
+                    if !remainingData.isEmpty {
+                        outputData.append(remainingData)
+                    }
+                    
+                    guard let output = String(data: outputData, encoding: .utf8) else {
+                        continuation.resume(throwing: ProviderError.providerError("Cannot decode output"))
+                        return
+                    }
+                    
+                    continuation.resume(returning: output)
+                }
+                
+                do {
+                    try process.run()
+                } catch {
+                    continuation.resume(throwing: error)
+                }
             }
         }
         
-        process.terminationHandler = { _ in
-            pipe.fileHandleForReading.readabilityHandler = nil
-            
-            let remainingData = pipe.fileHandleForReading.readDataToEndOfFile()
-            if !remainingData.isEmpty {
-                outputData.append(remainingData)
-            }
-            
-            guard let output = String(data: outputData, encoding: .utf8) else {
-                continuation.resume(throwing: ProviderError.providerError("Cannot decode output"))
-                return
-            }
-            
-            continuation.resume(returning: output)
+        group.addTask {
+            try await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+            throw ProviderError.networkError("Command timeout after \(Int(timeout))s")
         }
         
-        do {
-            try process.run()
-        } catch {
-            continuation.resume(throwing: error)
+        guard let result = try await group.next() else {
+            throw ProviderError.networkError("Task group failed")
         }
+        
+        group.cancelAll()
+        
+        if process.isRunning {
+            process.terminate()
+        }
+        
+        return result
     }
 }
 

@@ -115,7 +115,7 @@ extension StatusBarController {
                     formatter.dateFormat = "yyyy-MM-dd HH:mm zzz"
                     formatter.timeZone = TimeZone.current
                     let resetItem = NSMenuItem()
-                    resetItem.view = createDisabledLabelView(text: "   Resets: \(formatter.string(from: reset))")
+                    resetItem.view = createDisabledLabelView(text: "Resets: \(formatter.string(from: reset))", indent: 18)
                     submenu.addItem(resetItem)
                     
                     let paceInfo = calculatePace(usage: fiveHour, resetTime: reset, windowHours: 5)
@@ -133,7 +133,7 @@ extension StatusBarController {
                     formatter.dateFormat = "yyyy-MM-dd HH:mm zzz"
                     formatter.timeZone = TimeZone.current
                     let resetItem = NSMenuItem()
-                    resetItem.view = createDisabledLabelView(text: "   Resets: \(formatter.string(from: reset))")
+                    resetItem.view = createDisabledLabelView(text: "Resets: \(formatter.string(from: reset))", indent: 18)
                     submenu.addItem(resetItem)
                     
                     let paceInfo = calculatePace(usage: sevenDay, resetTime: reset, windowHours: 168)
@@ -152,7 +152,7 @@ extension StatusBarController {
                     formatter.dateFormat = "yyyy-MM-dd HH:mm zzz"
                     formatter.timeZone = TimeZone.current
                     let resetItem = NSMenuItem()
-                    resetItem.view = createDisabledLabelView(text: "   Resets: \(formatter.string(from: reset))")
+                    resetItem.view = createDisabledLabelView(text: "Resets: \(formatter.string(from: reset))", indent: 18)
                     submenu.addItem(resetItem)
                     
                     let paceInfo = calculatePace(usage: sonnet, resetTime: reset, windowHours: 168)
@@ -170,7 +170,7 @@ extension StatusBarController {
                     formatter.dateFormat = "yyyy-MM-dd HH:mm zzz"
                     formatter.timeZone = TimeZone.current
                     let resetItem = NSMenuItem()
-                    resetItem.view = createDisabledLabelView(text: "   Resets: \(formatter.string(from: reset))")
+                    resetItem.view = createDisabledLabelView(text: "Resets: \(formatter.string(from: reset))", indent: 18)
                     submenu.addItem(resetItem)
                     
                     let paceInfo = calculatePace(usage: opus, resetTime: reset, windowHours: 168)
