@@ -735,7 +735,7 @@ final class StatusBarController: NSObject {
                 insertIndex += 1
            }
          
-            let payAsYouGoOrder: [ProviderIdentifier] = [.openRouter, .openCodeZen, .openCode]
+            let payAsYouGoOrder: [ProviderIdentifier] = [.openRouter, .openCodeZen]
             for identifier in payAsYouGoOrder {
                 guard isProviderEnabled(identifier) else { continue }
                 
@@ -901,7 +901,7 @@ final class StatusBarController: NSObject {
          case .antigravity:
              image = NSImage(systemSymbolName: identifier.iconName, accessibilityDescription: identifier.displayName)
          case .openCodeZen:
-             image = NSImage(systemSymbolName: identifier.iconName, accessibilityDescription: identifier.displayName)
+             image = NSImage(named: "OpencodeIcon")
          }
          
          // Resize icons to 16x16 for consistent menu appearance

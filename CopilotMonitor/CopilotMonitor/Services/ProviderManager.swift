@@ -23,7 +23,6 @@ final class ProviderManager {
             CodexProvider(),
             GeminiCLIProvider(),
             OpenRouterProvider(),
-            OpenCodeProvider(),
             AntigravityProvider(),
             OpenCodeZenProvider()
         ]

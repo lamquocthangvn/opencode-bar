@@ -114,7 +114,7 @@ final class OpenCodeZenProvider: ProviderProtocol {
         var dailyHistory: [DailyUsage] = []
         var newCache: [DailyHistoryCache] = []
         
-        for day in 1...7 {
+        for day in 1...30 {
             guard let date = calendar.date(byAdding: .day, value: -(day - 1), to: today) else { continue }
             let dateStart = calendar.startOfDay(for: date)
             var dailyCost: Double
