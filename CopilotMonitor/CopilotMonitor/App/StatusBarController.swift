@@ -113,7 +113,7 @@ final class StatusBarController: NSObject {
     private func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         
-        statusBarIconView = StatusBarIconView(frame: NSRect(x: 0, y: 0, width: 70, height: 22))
+        statusBarIconView = StatusBarIconView(frame: NSRect(x: 0, y: 0, width: 70, height: 23))
         statusBarIconView.showLoading()
         statusItem.button?.addSubview(statusBarIconView)
         statusItem.button?.frame = statusBarIconView.frame
@@ -1055,7 +1055,7 @@ final class StatusBarController: NSObject {
     // MARK: - Custom Menu Item Views
     
     func createHeaderView(title: String) -> NSView {
-        let view = NSView(frame: NSRect(x: 0, y: 0, width: 250, height: 22))
+        let view = NSView(frame: NSRect(x: 0, y: 0, width: 250, height: 23))
         
         let label = NSTextField(labelWithString: title)
         label.font = NSFont.systemFont(ofSize: 11, weight: .bold)

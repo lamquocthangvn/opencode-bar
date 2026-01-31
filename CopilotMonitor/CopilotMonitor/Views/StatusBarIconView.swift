@@ -20,13 +20,13 @@ final class StatusBarIconView: NSView {
             let costText = formatCost(addOnCost)
             let font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .semibold)
             let textWidth = (costText as NSString).size(withAttributes: [.font: font]).width
-            return NSSize(width: baseIconWidth + textWidth + 4, height: 22)
+            return NSSize(width: baseIconWidth + textWidth + 4, height: 23)
         } else {
             // Circle (8px) + padding (4px) + number text width
             let text = isLoading ? "..." : (hasError ? "Err" : "\(usedCount)")
             let font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium)
             let textWidth = (text as NSString).size(withAttributes: [.font: font]).width
-            return NSSize(width: baseIconWidth + 8 + 4 + textWidth + 4, height: 22)
+            return NSSize(width: baseIconWidth + 8 + 4 + textWidth + 4, height: 23)
         }
     }
     

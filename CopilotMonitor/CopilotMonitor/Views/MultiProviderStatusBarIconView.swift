@@ -32,7 +32,7 @@ final class MultiProviderStatusBarIconView: NSView {
             let text = isLoading ? "..." : "Err"
             let font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium)
             let textWidth = (text as NSString).size(withAttributes: [.font: font]).width
-            return NSSize(width: baseIconWidth + textWidth + 4, height: 22)
+            return NSSize(width: baseIconWidth + textWidth + 4, height: 23)
         }
         
         // Calculate cost text width
@@ -50,7 +50,7 @@ final class MultiProviderStatusBarIconView: NSView {
             totalWidth += 14 + 2 + percentWidth + 4 // icon + space + text + padding
         }
         
-        return NSSize(width: totalWidth, height: 22)
+        return NSSize(width: totalWidth, height: 23)
     }
     
     func update(overageCost: Double, alerts: [ProviderAlert]) {
