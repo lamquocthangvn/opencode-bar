@@ -138,11 +138,9 @@ final class OpenCodeZenProvider: ProviderProtocol {
     /// Fetches daily history progressively (day 1 → day 2 → ... → day 30)
     /// Updates UI in real-time via NotificationCenter
     private func fetchDailyHistoryProgressively() async {
-        killExistingOpenCodeProcesses()
-        
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        
+        // Set loading state BEFORE cleanup to prevent race condition
+        // Multiple threads may pass the isLoading check simultaneously,
+        // so we mark as loading first to block subsequent fetch attempts
         OpenCodeZenProvider.loadingState = LoadingState(
             isLoading: true,
             currentDay: 0,
@@ -150,6 +148,13 @@ final class OpenCodeZenProvider: ProviderProtocol {
             dailyHistory: [],
             lastError: nil
         )
+        
+        killExistingOpenCodeProcesses()
+        
+        // Use UTC calendar to match cache dates which are stored in UTC
+        var calendar = Calendar.current
+        calendar.timeZone = TimeZone(abbreviation: "UTC") ?? TimeZone.current
+        let today = calendar.startOfDay(for: Date())
         
         // Load existing cache
         var cache = loadHistoryCache()
@@ -161,6 +166,7 @@ final class OpenCodeZenProvider: ProviderProtocol {
         
         logger.info("OpenCodeZen: Starting progressive fetch for 30 days")
         debugLog("Starting progressive fetch for 30 days")
+        debugLog("Cache loaded: \(cache.count) items, threshold: \(cacheValidThreshold)")
         
         // Fetch days 1-30 sequentially
         for day in 1...30 {
@@ -188,6 +194,7 @@ final class OpenCodeZenProvider: ProviderProtocol {
                     billedAmount: dailyCost
                 ))
                 
+                debugLog("Day \(day): $\(String(format: "%.2f", dailyCost)) (cached)")
                 logger.debug("Day \(day): $\(String(format: "%.2f", dailyCost)) (cached)")
             } else {
                 do {

@@ -3,7 +3,9 @@
   - If you find any Korean text, please translate it to English.
 - **UI Language**: All user-facing text in the app MUST be in English.
 
-## UI Styling Rules
+## Coding Rules
+
+### UI Styling Rules
 - **No colors for text emphasis**: Do NOT use `NSColor` attributes like `.foregroundColor` for menu items or labels.
 - **Do not use hex color**: Use pre-defined colors by system.
 - **Use instead**:
@@ -14,27 +16,23 @@
   - **Emoji**: Never use emoji for menu item icons. Always use SF Symbols instead.
 - **Exception**: Progress bars and status indicators can use color (green/yellow/orange/red).
 
-## Requirements
-- Get the data from API only, not from DOM.
-- Get useful session information (cookie, bearer and etc) from DOM/HTML if needed.
-- Login should be webview and ask to the user to login.
-
-## Reference
-- Copilot Usage (HTML)
-  - https://github.com/settings/billing/premium_requests_usage
-
-## Instruction
-- Always compile and run again after each change, and then ask to the user to see it. (Kill the existing process before running)
-
-## How to get quota usage?
-- in `@/scripts/` directory, you can see all of the scripts for every providers to get quota usage.
+### Instruction of each task
+- In all changes, always write debugging log for actually printing before you confirming the feature is fully functional.
+- After each change, follow:
+  - Clear cache and compile the binary
+  - Kill the existing process, and run the new app.
+  - Confirm if it works through **logs**.
 
 ## Release Policy
 - **Workflow**: STRICTLY follow `docs/RELEASE_WORKFLOW.md` for versioning, building, signing, and notarizing.
 - **Signing**: All DMGs distributed via GitHub Releases **MUST** be signed with Developer ID and **NOTARIZED** to pass macOS Gatekeeper.
 - **Documentation**: Update `README.md` and screenshots if UI changes significantly before release.
 
-  <!-- opencode:reflection:start -->
+## Tips
+### How to get quota usage?
+- in `@/scripts/` directory, you can see all of the scripts for every providers to get quota usage.
+
+<!-- opencode:reflection:start -->
 ### Error Handling & API Fallbacks
 - **API Response Type Flexibility**: External APIs may return different types than expected
   - Numeric Fields Can Be Strings: Fields like `balance` may come as String instead of Double/Int
