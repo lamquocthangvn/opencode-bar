@@ -2,23 +2,25 @@ import Foundation
 
 // MARK: - Refresh Interval
 enum RefreshInterval: Int, CaseIterable {
-    case tenSeconds = 10
-    case thirtySeconds = 30
     case oneMinute = 60
+    case threeMinutes = 180
     case fiveMinutes = 300
+    case tenMinutes = 600
     case thirtyMinutes = 1800
+    case oneHour = 3600
     
     var title: String {
         switch self {
-        case .tenSeconds: return "10s"
-        case .thirtySeconds: return "30s"
         case .oneMinute: return "1m"
+        case .threeMinutes: return "3m"
         case .fiveMinutes: return "5m"
+        case .tenMinutes: return "10m"
         case .thirtyMinutes: return "30m"
+        case .oneHour: return "1h"
         }
     }
     
-    static var defaultInterval: RefreshInterval { .thirtySeconds }
+    static var defaultInterval: RefreshInterval { .fiveMinutes }
 }
 
 // MARK: - Prediction Period
