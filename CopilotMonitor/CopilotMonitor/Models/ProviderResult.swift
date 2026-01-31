@@ -23,54 +23,54 @@ struct DetailedUsage {
     let limit: Double?
     let limitRemaining: Double?
     let resetPeriod: String?
-    
+
     // Claude-specific fields (5h/7d windows)
     let fiveHourUsage: Double?
     let fiveHourReset: Date?
     let sevenDayUsage: Double?
     let sevenDayReset: Date?
-    
+
     // Claude model breakdown
     let sonnetUsage: Double?
     let sonnetReset: Date?
     let opusUsage: Double?
     let opusReset: Date?
-    
+
     // Generic model breakdown (Gemini, Antigravity)
     let modelBreakdown: [String: Double]?
-    
+
     // Codex-specific fields (multiple windows)
     let secondaryUsage: Double?
     let secondaryReset: Date?
     let primaryReset: Date?
-    
+
     // Codex/Antigravity plan info
     let creditsBalance: Double?
     let planType: String?
-    
+
     // Claude extra usage toggle
     let extraUsageEnabled: Bool?
-    
+
     // OpenCode Zen stats
     let sessions: Int?
     let messages: Int?
     let avgCostPerDay: Double?
-    
+
     // Antigravity user email
     let email: String?
-    
+
     // History and cost tracking
     let dailyHistory: [DailyUsage]?
     let monthlyCost: Double?
     let creditsRemaining: Double?
     let creditsTotal: Double?
-    
+
     // Authentication source info (displayed as "Token From:" or "Cookies From:")
     let authSource: String?
-    
+
     // Multiple Gemini accounts support
     let geminiAccounts: [GeminiAccountQuota]?
-    
+
     init(
         dailyUsage: Double? = nil,
         weeklyUsage: Double? = nil,
@@ -154,7 +154,7 @@ extension DetailedUsage: Codable {
         case dailyHistory, monthlyCost, creditsRemaining, creditsTotal
         case authSource, geminiAccounts
     }
-    
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         dailyUsage = try container.decodeIfPresent(Double.self, forKey: .dailyUsage)
@@ -191,7 +191,7 @@ extension DetailedUsage: Codable {
         authSource = try container.decodeIfPresent(String.self, forKey: .authSource)
         geminiAccounts = try container.decodeIfPresent([GeminiAccountQuota].self, forKey: .geminiAccounts)
     }
-    
+
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encodeIfPresent(dailyUsage, forKey: .dailyUsage)
@@ -232,8 +232,8 @@ extension DetailedUsage: Codable {
 
 extension DetailedUsage {
     var hasAnyValue: Bool {
-        return dailyUsage != nil || weeklyUsage != nil || monthlyUsage != nil 
-            || totalCredits != nil || remainingCredits != nil 
+        return dailyUsage != nil || weeklyUsage != nil || monthlyUsage != nil
+            || totalCredits != nil || remainingCredits != nil
             || limit != nil || limitRemaining != nil || resetPeriod != nil
             || fiveHourUsage != nil || fiveHourReset != nil
             || sevenDayUsage != nil || sevenDayReset != nil

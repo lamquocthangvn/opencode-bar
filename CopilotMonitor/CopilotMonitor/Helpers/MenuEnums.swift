@@ -8,7 +8,7 @@ enum RefreshInterval: Int, CaseIterable {
     case tenMinutes = 600
     case thirtyMinutes = 1800
     case oneHour = 3600
-    
+
     var title: String {
         switch self {
         case .oneMinute: return "1m"
@@ -19,7 +19,7 @@ enum RefreshInterval: Int, CaseIterable {
         case .oneHour: return "1h"
         }
     }
-    
+
     static var defaultInterval: RefreshInterval { .fiveMinutes }
 }
 
@@ -28,7 +28,7 @@ enum PredictionPeriod: Int, CaseIterable {
     case oneWeek = 7
     case twoWeeks = 14
     case threeWeeks = 21
-    
+
     var title: String {
         switch self {
         case .oneWeek: return "7 days"
@@ -36,7 +36,7 @@ enum PredictionPeriod: Int, CaseIterable {
         case .threeWeeks: return "21 days"
         }
     }
-    
+
     var weights: [Double] {
         switch self {
         case .oneWeek:
@@ -47,6 +47,6 @@ enum PredictionPeriod: Int, CaseIterable {
             return [1.5, 1.5, 1.4, 1.4, 1.3, 1.3, 1.2, 1.2, 1.2, 1.1, 1.1, 1.1, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
         }
     }
-    
+
     static var defaultPeriod: PredictionPeriod { .oneWeek }
 }

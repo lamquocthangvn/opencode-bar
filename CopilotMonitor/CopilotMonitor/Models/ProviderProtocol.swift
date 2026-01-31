@@ -26,7 +26,7 @@ enum ProviderIdentifier: String, CaseIterable {
     case antigravity
     /// OpenCode Zen (pay-as-you-go)
     case openCodeZen = "open_code_zen"
-    
+
     /// Human-readable name for the provider
     var displayName: String {
         switch self {
@@ -48,7 +48,7 @@ enum ProviderIdentifier: String, CaseIterable {
             return "OpenCode Zen"
         }
     }
-    
+
     /// SF Symbol name for the provider icon
     var iconName: String {
         switch self {
@@ -76,10 +76,10 @@ enum ProviderIdentifier: String, CaseIterable {
 protocol ProviderProtocol: AnyObject {
     /// The identifier for this provider
     var identifier: ProviderIdentifier { get }
-    
+
     /// The type of billing model this provider uses
     var type: ProviderType { get }
-    
+
     /// Fetches current usage data from the provider
     /// - Returns: ProviderResult containing usage and optional detailed information
     /// - Throws: ProviderError if fetch fails
@@ -98,7 +98,7 @@ enum ProviderError: LocalizedError {
     case providerError(String)
     /// Unsupported operation for this provider
     case unsupported(String)
-    
+
     var errorDescription: String? {
         switch self {
         case .authenticationFailed(let message):

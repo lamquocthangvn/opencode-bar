@@ -8,15 +8,15 @@ enum ProviderUsage {
     /// - cost: Current cost in dollars (optional)
     /// - resetsAt: When the usage window resets
     case payAsYouGo(utilization: Double, cost: Double?, resetsAt: Date?)
-    
+
     /// Quota-based model: tracks remaining quota and entitlement
     /// - remaining: Remaining quota (can be negative if overage permitted)
     /// - entitlement: Total monthly quota
     /// - overagePermitted: Whether overage is allowed
     case quotaBased(remaining: Int, entitlement: Int, overagePermitted: Bool)
-    
+
     // MARK: - Computed Properties
-    
+
     /// Usage as a percentage (0-100)
     /// For quota-based: (used / entitlement) * 100
     /// For pay-as-you-go: utilization value
@@ -30,7 +30,7 @@ enum ProviderUsage {
             return (Double(used) / Double(entitlement)) * 100
         }
     }
-    
+
     /// Whether usage is within normal limits
     /// For quota-based: remaining >= 0
     /// For pay-as-you-go: utilization <= 100
@@ -42,7 +42,7 @@ enum ProviderUsage {
             return remaining >= 0
         }
     }
-    
+
     /// Human-readable status message
     var statusMessage: String {
         switch self {
@@ -54,7 +54,7 @@ enum ProviderUsage {
                 return "\(percentStr) used, resets \(relativeTime)"
             }
             return "\(percentStr) used"
-            
+
         case .quotaBased(let remaining, let entitlement, let overagePermitted):
             let used = entitlement - remaining
             if remaining >= 0 {
@@ -66,7 +66,7 @@ enum ProviderUsage {
             }
         }
     }
-    
+
     /// Remaining quota for quota-based providers
     /// Returns nil for pay-as-you-go providers
     var remainingQuota: Int? {
@@ -77,7 +77,7 @@ enum ProviderUsage {
             return nil
         }
     }
-    
+
     /// Total entitlement for quota-based providers
     /// Returns nil for pay-as-you-go providers
     var totalEntitlement: Int? {
@@ -88,7 +88,7 @@ enum ProviderUsage {
             return nil
         }
     }
-    
+
     /// Reset time for pay-as-you-go providers
     /// Returns nil for quota-based providers
     var resetTime: Date? {
@@ -99,7 +99,7 @@ enum ProviderUsage {
             return nil
         }
     }
-    
+
     /// Cost for pay-as-you-go providers
     /// Returns nil for quota-based providers
     var cost: Double? {
@@ -124,24 +124,24 @@ extension ProviderUsage: Codable {
         case entitlement
         case overagePermitted
     }
-    
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let type = try container.decode(String.self, forKey: .type)
-        
+
         switch type {
         case "payAsYouGo":
             let utilization = (try? container.decodeIfPresent(Double.self, forKey: .utilization)) ?? 0.0
             let cost = try? container.decodeIfPresent(Double.self, forKey: .cost)
             let resetsAt = try? container.decodeIfPresent(Date.self, forKey: .resetsAt)
             self = .payAsYouGo(utilization: utilization, cost: cost, resetsAt: resetsAt)
-            
+
         case "quotaBased":
             let remaining = (try? container.decodeIfPresent(Int.self, forKey: .remaining)) ?? 0
             let entitlement = (try? container.decodeIfPresent(Int.self, forKey: .entitlement)) ?? 0
             let overagePermitted = (try? container.decodeIfPresent(Bool.self, forKey: .overagePermitted)) ?? false
             self = .quotaBased(remaining: remaining, entitlement: entitlement, overagePermitted: overagePermitted)
-            
+
         default:
             throw DecodingError.dataCorruptedError(
                 forKey: .type,
@@ -150,17 +150,17 @@ extension ProviderUsage: Codable {
             )
         }
     }
-    
+
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        
+
         switch self {
         case .payAsYouGo(let utilization, let cost, let resetsAt):
             try container.encode("payAsYouGo", forKey: .type)
             try container.encode(utilization, forKey: .utilization)
             try container.encodeIfPresent(cost, forKey: .cost)
             try container.encodeIfPresent(resetsAt, forKey: .resetsAt)
-            
+
         case .quotaBased(let remaining, let entitlement, let overagePermitted):
             try container.encode("quotaBased", forKey: .type)
             try container.encode(remaining, forKey: .remaining)
