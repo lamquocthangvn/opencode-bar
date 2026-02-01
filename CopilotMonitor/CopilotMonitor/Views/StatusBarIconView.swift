@@ -173,8 +173,4 @@ final class StatusBarIconView: NSView {
             return String(format: "$%.2f", cost)
         }
     }
-
-    private func colorForPercentage(_ percentage: Double) -> NSColor {
-        return NSColor.white
-    }
 }

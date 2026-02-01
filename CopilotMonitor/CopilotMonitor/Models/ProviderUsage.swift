@@ -56,7 +56,6 @@ enum ProviderUsage {
             return "\(percentStr) used"
 
         case .quotaBased(let remaining, let entitlement, let overagePermitted):
-            let used = entitlement - remaining
             if remaining >= 0 {
                 return "\(remaining) of \(entitlement) remaining"
             } else {

@@ -201,7 +201,7 @@ def get_chromium_profiles(browser: BrowserType) -> List[BrowserProfile]:
                             prefs = json.load(f)
                             profile_name = prefs.get('profile', {}).get('name', item.name)
                     except (json.JSONDecodeError, IOError, KeyError):
-                        pass
+                        pass  # Graceful fallback: use directory name if prefs unreadable
                 
                 profiles.append(BrowserProfile(
                     browser=browser,

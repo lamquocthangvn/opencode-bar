@@ -215,11 +215,15 @@ done
 
 ### Anthropic (Claude)
 ```
+# Public OAuth client ID - extracted from official Claude Code CLI
+# This is NOT a secret - it's embedded in the public CLI binary
 Client ID: 9d1c250a-e61b-44d9-88ed-5944d1962f5e
 ```
 
 ### OpenAI (Codex)
 ```
+# Public OAuth client ID - extracted from official Codex CLI
+# This is NOT a secret - it's embedded in the public CLI binary
 Client ID: app_EMoamEEZ73f0CkXaXp7hrann
 ```
 

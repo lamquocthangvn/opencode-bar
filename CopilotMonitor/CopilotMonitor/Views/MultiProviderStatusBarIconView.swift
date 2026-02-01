@@ -152,8 +152,12 @@ final class MultiProviderStatusBarIconView: NSView {
             iconName = "k.circle"
         }
 
-        guard let icon = NSImage(named: iconName) else {
-            // Fallback: draw colored circle
+        let icon: NSImage
+        if let assetIcon = NSImage(named: iconName) {
+            icon = assetIcon
+        } else if let sfIcon = NSImage(systemSymbolName: iconName, accessibilityDescription: alert.identifier.displayName) {
+            icon = sfIcon
+        } else {
             drawAlertCircle(at: origin, isDark: isDark)
             return
         }
