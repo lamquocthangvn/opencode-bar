@@ -5,7 +5,7 @@ private let logger = Logger(subsystem: "com.opencodeproviders", category: "Provi
 
 /// Singleton coordinator for managing multiple AI provider usage tracking
 /// Handles parallel fetching, aggregation, and error recovery
-final class ProviderManager {
+actor ProviderManager {
     // MARK: - Singleton
 
     static let shared = ProviderManager()
@@ -17,8 +17,8 @@ final class ProviderManager {
     private var providers: [ProviderProtocol] = []
 
     /// Registers providers that don't require external dependencies
-    private func registerDefaultProviders() {
-        providers = [
+    private nonisolated static func makeDefaultProviders() -> [ProviderProtocol] {
+        [
             ClaudeProvider(),
             CodexProvider(),
             GeminiCLIProvider(),
@@ -38,11 +38,11 @@ final class ProviderManager {
     // MARK: - Initialization
 
     private init() {
-        registerDefaultProviders()
+        providers = Self.makeDefaultProviders()
         logger.info("ProviderManager initialized with \(self.providers.count) providers")
     }
 
-    private func debugLog(_ message: String) {
+    private nonisolated func debugLog(_ message: String) {
         #if DEBUG
         let msg = "[\(Date())] ProviderManager: \(message)\n"
         if let data = msg.data(using: .utf8) {
@@ -208,9 +208,7 @@ final class ProviderManager {
     ///   - identifier: Provider identifier
     ///   - result: Result data to cache
     private func updateCache(identifier: ProviderIdentifier, result: ProviderResult) async {
-        await MainActor.run {
-            self.cachedResults[identifier] = result
-        }
+        cachedResults[identifier] = result
     }
 
     /// Thread-safe cache retrieval (async-safe using Task isolation)

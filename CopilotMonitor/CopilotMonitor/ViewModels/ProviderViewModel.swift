@@ -29,10 +29,13 @@ final class ProviderViewModel: ObservableObject {
     /// Refreshes all provider data
     /// - Note: Updates loadingProviders during fetch for UI loading states
     func refresh() async {
-        // Mark all enabled providers as loading
-        loadingProviders = Set(ProviderIdentifier.allCases.filter { 
-            providerManager.getProvider(for: $0) != nil 
-        })
+        var enabledProviders: [ProviderIdentifier] = []
+        for identifier in ProviderIdentifier.allCases {
+            if await providerManager.getProvider(for: identifier) != nil {
+                enabledProviders.append(identifier)
+            }
+        }
+        loadingProviders = Set(enabledProviders)
         
         // Fetch all providers in parallel
         let results = await providerManager.fetchAll()
@@ -41,6 +44,8 @@ final class ProviderViewModel: ObservableObject {
         providerResults = results
         lastUpdated = Date()
         lastError = nil
+        totalOverageCost = await providerManager.calculateTotalOverageCost(from: providerResults)
+        quotaAlerts = await providerManager.getQuotaAlerts(from: providerResults)
         
         // Clear loading state
         loadingProviders.removeAll()
@@ -65,13 +70,9 @@ final class ProviderViewModel: ObservableObject {
     }
     
     /// Calculates total overage cost across all pay-as-you-go providers
-    var totalOverageCost: Double {
-        providerManager.calculateTotalOverageCost(from: providerResults)
-    }
+    @Published private(set) var totalOverageCost: Double = 0.0
     
     /// Returns providers with quota below 20% threshold
     /// - Returns: Array of (identifier, remaining percentage) tuples
-    var quotaAlerts: [(ProviderIdentifier, Double)] {
-        providerManager.getQuotaAlerts(from: providerResults)
-    }
+    @Published private(set) var quotaAlerts: [(ProviderIdentifier, Double)] = []
 }

@@ -591,7 +591,7 @@ final class StatusBarController: NSObject {
 
       private func fetchMultiProviderData() async {
           debugLog("fetchMultiProviderData: started")
-          let enabledProviders = ProviderManager.shared.getAllProviders().filter { provider in
+          let enabledProviders = await ProviderManager.shared.getAllProviders().filter { provider in
               isProviderEnabled(provider.identifier) && provider.identifier != .copilot
           }
           debugLog("fetchMultiProviderData: enabledProviders count=\(enabledProviders.count)")
@@ -1081,16 +1081,16 @@ final class StatusBarController: NSObject {
         multiline: Bool = false,
         indent: CGFloat = 0
     ) -> NSView {
-        var leadingOffset: CGFloat = 14 + indent
-        let menuWidth: CGFloat = 300
-        let labelFont = font ?? (monospaced ? NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .regular) : NSFont.systemFont(ofSize: 13))
+        var leadingOffset: CGFloat = MenuDesignToken.Spacing.leadingOffset + indent
+        let menuWidth: CGFloat = MenuDesignToken.Dimension.menuWidth
+        let labelFont = font ?? (monospaced ? NSFont.monospacedDigitSystemFont(ofSize: MenuDesignToken.Dimension.fontSize, weight: .regular) : NSFont.systemFont(ofSize: MenuDesignToken.Dimension.fontSize))
 
         if icon != nil {
-            leadingOffset = 36
+            leadingOffset = MenuDesignToken.Spacing.leadingWithIcon
         }
 
-        let availableWidth = menuWidth - leadingOffset - 14
-        var viewHeight: CGFloat = 22
+        let availableWidth = menuWidth - leadingOffset - MenuDesignToken.Spacing.trailingMargin
+        var viewHeight: CGFloat = MenuDesignToken.Dimension.itemHeight
 
         if multiline {
             let size = NSSize(width: availableWidth, height: .greatestFiniteMagnitude)
