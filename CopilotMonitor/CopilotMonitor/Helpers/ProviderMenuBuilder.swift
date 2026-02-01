@@ -424,8 +424,6 @@ extension StatusBarController {
         let subscriptionKey = SubscriptionSettingsManager.shared.subscriptionKey(for: provider, accountId: accountId)
         let currentPlan = SubscriptionSettingsManager.shared.getPlan(forKey: subscriptionKey)
         let presets = ProviderSubscriptionPresets.presets(for: provider)
-        
-
 
         submenu.addItem(NSMenuItem.separator())
 
