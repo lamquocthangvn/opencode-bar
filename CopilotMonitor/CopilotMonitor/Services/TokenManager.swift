@@ -566,15 +566,16 @@ final class TokenManager {
             debugLines.append("[~/.config/opencode] NOT FOUND")
         }
 
-        // 4. OpenCode CLI existence
-        let opencodeCLI = homeDir.appendingPathComponent(".opencode/bin/opencode")
-        if fileManager.fileExists(atPath: opencodeCLI.path) {
-            debugLines.append("[OpenCode CLI] EXISTS at \(opencodeCLI.path)")
+        // 5. OpenCode CLI existence (dynamic search)
+        debugLines.append("[OpenCode CLI] Searching...")
+        if let cliPath = findOpenCodeCLI() {
+            debugLines.append("[OpenCode CLI] FOUND at \(cliPath)")
         } else {
-            debugLines.append("[OpenCode CLI] NOT FOUND at \(opencodeCLI.path)")
+            debugLines.append("[OpenCode CLI] NOT FOUND via which, login shell, or common locations")
+            debugLines.append("  Common locations checked: /opt/homebrew/bin, /usr/local/bin, ~/.opencode/bin, ~/.local/bin, /usr/bin")
         }
 
-        // 5. Token existence and lengths (masked for security)
+        // 6. Token existence and lengths (masked for security)
         debugLines.append("---------- Token Status ----------")
 
         if let auth = readOpenCodeAuth() {
@@ -671,7 +672,68 @@ final class TokenManager {
         #endif
     }
 
-    /// Masks a token for secure logging (shows first 4 and last 4 chars)
+    private func findOpenCodeCLI() -> String? {
+        // Try 'which opencode' first
+        let whichProcess = Process()
+        whichProcess.executableURL = URL(fileURLWithPath: "/usr/bin/which")
+        whichProcess.arguments = ["opencode"]
+        let whichPipe = Pipe()
+        whichProcess.standardOutput = whichPipe
+        whichProcess.standardError = FileHandle.nullDevice
+        
+        do {
+            try whichProcess.run()
+            whichProcess.waitUntilExit()
+            if whichProcess.terminationStatus == 0 {
+                let data = whichPipe.fileHandleForReading.readDataToEndOfFile()
+                if let path = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
+                   !path.isEmpty,
+                   FileManager.default.fileExists(atPath: path) {
+                    return path
+                }
+            }
+        } catch {}
+        
+        // Try login shell PATH
+        let shell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
+        let shellProcess = Process()
+        shellProcess.executableURL = URL(fileURLWithPath: shell)
+        shellProcess.arguments = ["-lc", "which opencode 2>/dev/null"]
+        let shellPipe = Pipe()
+        shellProcess.standardOutput = shellPipe
+        shellProcess.standardError = FileHandle.nullDevice
+        
+        do {
+            try shellProcess.run()
+            shellProcess.waitUntilExit()
+            if shellProcess.terminationStatus == 0 {
+                let data = shellPipe.fileHandleForReading.readDataToEndOfFile()
+                if let path = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
+                   !path.isEmpty,
+                   FileManager.default.fileExists(atPath: path) {
+                    return path
+                }
+            }
+        } catch {}
+        
+        // Fallback to hardcoded paths
+        let fallbackPaths = [
+            "/opt/homebrew/bin/opencode",
+            "/usr/local/bin/opencode",
+            FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".opencode/bin/opencode").path,
+            FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".local/bin/opencode").path,
+            "/usr/bin/opencode",
+        ]
+        
+        for path in fallbackPaths {
+            if FileManager.default.fileExists(atPath: path) {
+                return path
+            }
+        }
+        
+        return nil
+    }
+    
     private func maskToken(_ token: String) -> String {
         guard token.count > 8 else { return "***" }
         let prefix = String(token.prefix(4))
