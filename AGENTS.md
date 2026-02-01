@@ -35,33 +35,27 @@
 - To avoid confusing of used % or left %, explicit if it's used or left on every labels.
 
 ### Menu Item Layout Constants (MUST follow strictly)
-All custom menu item views MUST use these exact pixel values for consistency:
+All custom menu item views MUST use `MenuDesignToken` from `Helpers/MenuDesignToken.swift`:
 ```swift
-// Standard dimensions
-let menuWidth: CGFloat = 300
-let itemHeight: CGFloat = 22
-let fontSize: CGFloat = 13
+// Usage examples
+let width = MenuDesignToken.Dimension.menuWidth      // 300
+let height = MenuDesignToken.Dimension.itemHeight    // 22
+let fontSize = MenuDesignToken.Dimension.fontSize    // 13
+let iconSize = MenuDesignToken.Dimension.iconSize    // 16
 
-// Horizontal spacing
-let leadingOffset: CGFloat = 14      // Left margin for text (no icon)
-let leadingWithIcon: CGFloat = 36    // Left margin when icon present
-let trailingMargin: CGFloat = 14     // Right margin
+let leading = MenuDesignToken.Spacing.leadingOffset      // 14
+let leadingIcon = MenuDesignToken.Spacing.leadingWithIcon // 36
+let trailing = MenuDesignToken.Spacing.trailingMargin    // 14
 
-// Vertical spacing  
-let textYOffset: CGFloat = 3         // Y position for single-line text
-let iconYOffset: CGFloat = 3         // Y position for icons
+let font = MenuDesignToken.Typography.defaultFont
+let mono = MenuDesignToken.Typography.monospacedFont
+let bold = MenuDesignToken.Typography.boldFont
 
-// Icon dimensions
-let iconSize: CGFloat = 16           // Standard SF Symbol size
-let statusDotSize: CGFloat = 8       // Status indicator dot (circle.fill)
-
-// Right-aligned elements position
-let rightElementX: CGFloat = menuWidth - trailingMargin - iconSize  // = 270
+let rightX = MenuDesignToken.rightElementX  // 270 (computed)
 ```
-- **NEVER** hardcode different pixel values in custom views
+- **NEVER** hardcode pixel values - always use `MenuDesignToken`
 - **ALWAYS** reuse `createDisabledLabelView()` when possible instead of creating custom NSView
-- When creating custom views, reference these constants to ensure alignment matches standard menu items
-- **MUST** update this section if you need to define new custom spacing, margin, dimensions rules.
+- When adding new constants, add them to `MenuDesignToken.swift` first, then update this section
 
 ### Build & Run Commands
 ```bash
@@ -351,5 +345,12 @@ func buildProviderSubmenu() -> [NSMenuItem] {
       - Alignment Benefits: Standard NSMenuItem aligns perfectly with regular menu items, avoiding custom view pixel mismatches
       - Pattern: `let item = NSMenuItem(title: "Loading...", action: nil, keyEquivalent: ""); item.isEnabled = false`
       - Example Fix: Pay-as-you-go, Quota Status, and Gemini CLI loading items unified to use standard NSMenuItem
+   - **SwiftUI MenuBarExtra + AppKit NSStatusItem Duplication**:
+      - Problem: Using both SwiftUI `MenuBarExtra` AND creating `NSStatusItem` directly causes TWO menu bar icons
+      - Root Cause: Each approach independently creates a status bar item
+      - Solution: Use ONLY ONE approach - either SwiftUI MenuBarExtra with bridge, or pure AppKit NSStatusItem
+      - Current Pattern: SwiftUI MenuBarExtra with `isInserted: $isMenuEnabled` set to `false`, AppKit NSStatusItem handles everything
+      - Anti-Pattern: Creating `NSStatusBar.system.statusItem()` while also using `MenuBarExtra { }`
+      - Example Fix: Set `@State private var isMenuEnabled = false` and use `MenuBarExtra(isInserted: $isMenuEnabled)`
 
              <!-- opencode:reflection:end -->

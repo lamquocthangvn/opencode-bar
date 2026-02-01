@@ -8,8 +8,8 @@ private let logger = Logger(subsystem: "com.opencodeproviders", category: "Statu
 
 @MainActor
 final class StatusBarController: NSObject {
-    private var statusItem: NSStatusItem!
-    private var statusBarIconView: StatusBarIconView!
+    private var statusItem: NSStatusItem?
+    private var statusBarIconView: StatusBarIconView?
     private var menu: NSMenu!
     private var signInItem: NSMenuItem!
     private var resetLoginItem: NSMenuItem!
@@ -112,11 +112,10 @@ final class StatusBarController: NSObject {
 
     private func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-
         statusBarIconView = StatusBarIconView(frame: NSRect(x: 0, y: 0, width: 70, height: 23))
-        statusBarIconView.showLoading()
-        statusItem.button?.addSubview(statusBarIconView)
-        statusItem.button?.frame = statusBarIconView.frame
+        statusBarIconView?.showLoading()
+        statusItem?.button?.addSubview(statusBarIconView!)
+        statusItem?.button?.frame = statusBarIconView!.frame
     }
 
     private func setupMenu() {
@@ -199,14 +198,27 @@ final class StatusBarController: NSObject {
          quitItem.image = NSImage(systemSymbolName: "xmark.circle", accessibilityDescription: "Quit")
          quitItem.target = self
          menu.addItem(quitItem)
-         statusItem.menu = menu
          
+         statusItem?.menu = menu
          logMenuStructure()
      }
 
     /// Attach the existing menu to an external NSStatusItem (for MenuBarExtraAccess bridge)
     func attachTo(_ statusItem: NSStatusItem) {
+        debugLog("attachTo: called with statusItem")
+        self.statusItem = statusItem
         statusItem.menu = self.menu
+        statusItem.length = NSStatusItem.variableLength
+        
+        if let iconView = statusBarIconView {
+            debugLog("attachTo: setting up iconView")
+            statusItem.button?.subviews.forEach { $0.removeFromSuperview() }
+            statusItem.button?.addSubview(iconView)
+            statusItem.button?.frame = iconView.frame
+            debugLog("attachTo: iconView frame = \(iconView.frame)")
+        } else {
+            debugLog("attachTo: iconView is nil!")
+        }
     }
 
     private func updateRefreshIntervalMenu() {
@@ -324,7 +336,7 @@ final class StatusBarController: NSObject {
         }
         isFetching = true
         debugLog("fetchUsage: showing loading")
-        statusBarIconView.showLoading()
+        statusBarIconView?.showLoading()
 
         debugLog("fetchUsage: creating Task")
         Task { @MainActor in
@@ -966,7 +978,7 @@ final class StatusBarController: NSObject {
 
         if let usage = currentUsage {
             let totalCost = calculatePayAsYouGoTotal(providerResults: providerResults, copilotUsage: usage)
-            statusBarIconView.update(used: usage.usedRequests, limit: usage.limitRequests, cost: totalCost)
+            statusBarIconView?.update(used: usage.usedRequests, limit: usage.limitRequests, cost: totalCost)
         }
         debugLog("updateMultiProviderMenu: completed successfully")
         logMenuStructure()
@@ -1190,21 +1202,20 @@ final class StatusBarController: NSObject {
     }
 
       private func updateUIForSuccess(usage: CopilotUsage) {
-          // Menu bar shows total Pay-as-you-go cost (Copilot Add-on + OpenRouter + OpenCode Zen + etc.)
           let totalPayAsYouGoCost = calculatePayAsYouGoTotal(providerResults: providerResults, copilotUsage: usage)
-          statusBarIconView.update(used: usage.usedRequests, limit: usage.limitRequests, cost: totalPayAsYouGoCost)
+          statusBarIconView?.update(used: usage.usedRequests, limit: usage.limitRequests, cost: totalPayAsYouGoCost)
           signInItem.isHidden = true
           updateHistorySubmenu()
           updateMultiProviderMenu()
       }
 
     private func updateUIForLoggedOut() {
-        statusBarIconView.showError()
+        statusBarIconView?.showError()
         signInItem.isHidden = false
     }
 
     private func handleFetchError(_ error: Error) {
-        statusBarIconView.showError()
+        statusBarIconView?.showError()
     }
 
     @objc private func signInClicked() {
