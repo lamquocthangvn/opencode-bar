@@ -75,10 +75,17 @@ protocol ProviderProtocol: AnyObject {
     /// The type of billing model this provider uses
     var type: ProviderType { get }
 
+    /// Timeout for fetch operations (default: 10 seconds)
+    var fetchTimeout: TimeInterval { get }
+
     /// Fetches current usage data from the provider
     /// - Returns: ProviderResult containing usage and optional detailed information
     /// - Throws: ProviderError if fetch fails
     func fetch() async throws -> ProviderResult
+}
+
+extension ProviderProtocol {
+    var fetchTimeout: TimeInterval { 10.0 }
 }
 
 /// Errors that can occur during provider operations
