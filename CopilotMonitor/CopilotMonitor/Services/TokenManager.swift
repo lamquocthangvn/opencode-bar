@@ -31,11 +31,53 @@ struct OpenCodeAuth: Codable {
     let openrouter: APIKey?
     let opencode: APIKey?
     let kimiForCoding: APIKey?
+    let zaiCodingPlan: APIKey?
 
     enum CodingKeys: String, CodingKey {
         case anthropic, openai, openrouter, opencode
         case githubCopilot = "github-copilot"
         case kimiForCoding = "kimi-for-coding"
+        case zaiCodingPlan = "zai-coding-plan"
+    }
+
+    init(
+        anthropic: OAuth?,
+        openai: OAuth?,
+        githubCopilot: OAuth?,
+        openrouter: APIKey?,
+        opencode: APIKey?,
+        kimiForCoding: APIKey?,
+        zaiCodingPlan: APIKey?
+    ) {
+        self.anthropic = anthropic
+        self.openai = openai
+        self.githubCopilot = githubCopilot
+        self.openrouter = openrouter
+        self.opencode = opencode
+        self.kimiForCoding = kimiForCoding
+        self.zaiCodingPlan = zaiCodingPlan
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        anthropic = try container.decodeIfPresent(OAuth.self, forKey: .anthropic)
+        openai = try container.decodeIfPresent(OAuth.self, forKey: .openai)
+        githubCopilot = try container.decodeIfPresent(OAuth.self, forKey: .githubCopilot)
+        openrouter = try container.decodeIfPresent(APIKey.self, forKey: .openrouter)
+        opencode = try container.decodeIfPresent(APIKey.self, forKey: .opencode)
+        kimiForCoding = try container.decodeIfPresent(APIKey.self, forKey: .kimiForCoding)
+        zaiCodingPlan = try container.decodeIfPresent(APIKey.self, forKey: .zaiCodingPlan)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(anthropic, forKey: .anthropic)
+        try container.encodeIfPresent(openai, forKey: .openai)
+        try container.encodeIfPresent(githubCopilot, forKey: .githubCopilot)
+        try container.encodeIfPresent(openrouter, forKey: .openrouter)
+        try container.encodeIfPresent(opencode, forKey: .opencode)
+        try container.encodeIfPresent(kimiForCoding, forKey: .kimiForCoding)
+        try container.encodeIfPresent(zaiCodingPlan, forKey: .zaiCodingPlan)
     }
 }
 
@@ -316,6 +358,11 @@ final class TokenManager: @unchecked Sendable {
         return auth.kimiForCoding?.key
     }
 
+    func getZaiCodingPlanAPIKey() -> String? {
+        guard let auth = readOpenCodeAuth() else { return nil }
+        return auth.zaiCodingPlan?.key
+    }
+
     /// Gets Gemini refresh token from Antigravity accounts (active account)
     /// - Returns: Refresh token string if available, nil otherwise
     func getGeminiRefreshToken() -> String? {
@@ -442,6 +489,7 @@ final class TokenManager: @unchecked Sendable {
         debugLines.append(String(repeating: "─", count: 40))
 
         // 0. XDG_DATA_HOME environment variable
+        let hasXdgDataHome = ProcessInfo.processInfo.environment["XDG_DATA_HOME"]?.isEmpty == false
         if let xdgDataHome = ProcessInfo.processInfo.environment["XDG_DATA_HOME"], !xdgDataHome.isEmpty {
             debugLines.append("[XDG_DATA_HOME] SET: \(xdgDataHome)")
         } else {
@@ -457,13 +505,22 @@ final class TokenManager: @unchecked Sendable {
         for (index, authPath) in authPaths.enumerated() {
             let priority = index + 1
             let pathLabel: String
-            switch index {
-            case 0 where ProcessInfo.processInfo.environment["XDG_DATA_HOME"] != nil:
-                pathLabel = "$XDG_DATA_HOME/opencode"
-            case 0, 1:
-                pathLabel = "~/.local/share/opencode"
-            default:
-                pathLabel = "~/Library/Application Support/opencode"
+            if hasXdgDataHome {
+                switch index {
+                case 0:
+                    pathLabel = "$XDG_DATA_HOME/opencode"
+                case 1:
+                    pathLabel = "~/.local/share/opencode"
+                default:
+                    pathLabel = "~/Library/Application Support/opencode"
+                }
+            } else {
+                switch index {
+                case 0:
+                    pathLabel = "~/.local/share/opencode"
+                default:
+                    pathLabel = "~/Library/Application Support/opencode"
+                }
             }
 
             if fileManager.fileExists(atPath: authPath.path) {
@@ -527,6 +584,7 @@ final class TokenManager: @unchecked Sendable {
             debugLines.append("  [OpenRouter] \(auth.openrouter != nil ? "CONFIGURED" : "NOT CONFIGURED")")
             debugLines.append("  [OpenCode] \(auth.opencode != nil ? "CONFIGURED" : "NOT CONFIGURED")")
             debugLines.append("  [Kimi] \(auth.kimiForCoding != nil ? "CONFIGURED" : "NOT CONFIGURED")")
+            debugLines.append("  [Z.AI Coding Plan] \(auth.zaiCodingPlan != nil ? "CONFIGURED" : "NOT CONFIGURED")")
         } else {
             debugLines.append("  [auth.json] PARSE FAILED or NOT FOUND")
         }
@@ -552,6 +610,7 @@ final class TokenManager: @unchecked Sendable {
         debugLines.append("========== Environment Debug Info ==========")
 
         // 0. XDG_DATA_HOME environment variable
+        let hasXdgDataHome = ProcessInfo.processInfo.environment["XDG_DATA_HOME"]?.isEmpty == false
         if let xdgDataHome = ProcessInfo.processInfo.environment["XDG_DATA_HOME"], !xdgDataHome.isEmpty {
             debugLines.append("[XDG_DATA_HOME] SET: \(xdgDataHome)")
         } else {
@@ -566,13 +625,22 @@ final class TokenManager: @unchecked Sendable {
         for (index, authPath) in authPaths.enumerated() {
             let priority = index + 1
             let pathLabel: String
-            switch index {
-            case 0 where ProcessInfo.processInfo.environment["XDG_DATA_HOME"] != nil:
-                pathLabel = "$XDG_DATA_HOME/opencode"
-            case 0, 1:
-                pathLabel = "~/.local/share/opencode"
-            default:
-                pathLabel = "~/Library/Application Support/opencode"
+            if hasXdgDataHome {
+                switch index {
+                case 0:
+                    pathLabel = "$XDG_DATA_HOME/opencode"
+                case 1:
+                    pathLabel = "~/.local/share/opencode"
+                default:
+                    pathLabel = "~/Library/Application Support/opencode"
+                }
+            } else {
+                switch index {
+                case 0:
+                    pathLabel = "~/.local/share/opencode"
+                default:
+                    pathLabel = "~/Library/Application Support/opencode"
+                }
             }
 
             if fileManager.fileExists(atPath: authPath.path) {
@@ -745,6 +813,14 @@ final class TokenManager: @unchecked Sendable {
                 debugLines.append("  - Key Preview: \(maskToken(kimi.key))")
             } else {
                 debugLines.append("[Kimi for Coding] NOT CONFIGURED")
+            }
+
+            if let zaiCodingPlan = auth.zaiCodingPlan {
+                debugLines.append("[Z.AI Coding Plan] API Key Present")
+                debugLines.append("  - Key Length: \(zaiCodingPlan.key.count) chars")
+                debugLines.append("  - Key Preview: \(maskToken(zaiCodingPlan.key))")
+            } else {
+                debugLines.append("[Z.AI Coding Plan] NOT CONFIGURED")
             }
         } else {
             debugLines.append("[auth.json] PARSE FAILED or NOT FOUND")
