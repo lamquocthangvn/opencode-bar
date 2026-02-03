@@ -41,8 +41,8 @@ Download the latest `.dmg` file from the [**Releases**](https://github.com/opggi
 
 ### Supported Providers (Auto-detected from OpenCode)
 
-| Provider | Type | Key Metrics | Additional Details |
-|----------|------|-------------|--------------------|
+| Provider | Type | Key Metrics |
+|----------|------|-------------|
 | **OpenRouter** | Pay-as-you-go | Credits balance, daily/weekly/monthly cost |
 | **OpenCode Zen** | Pay-as-you-go | Daily history (30 days), model breakdown |
 | **GitHub Copilot Add-on** | Pay-as-you-go | Usage-based billing after exceeding quota |
