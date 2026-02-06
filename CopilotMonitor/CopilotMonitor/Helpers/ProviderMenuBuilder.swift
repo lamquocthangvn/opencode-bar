@@ -882,6 +882,8 @@ extension StatusBarController {
         let predictedFinalUsage: Double
         let remainingSeconds: TimeInterval
         let isExhausted: Bool
+        let elapsedSeconds: TimeInterval
+        let totalSeconds: TimeInterval
 
         var status: PaceStatus {
             if isExhausted {
@@ -896,21 +898,38 @@ extension StatusBarController {
             }
         }
 
+        private var paceUnitSuffix: String {
+            // 5d+ => per day, otherwise per hour.
+            if totalSeconds >= (5.0 * 24.0 * 3600.0) {
+                return "d"
+            }
+            return "h"
+        }
+
+        var paceRateText: String {
+            guard totalSeconds > 0 else { return "Unavailable" }
+
+            let unitSeconds: Double = paceUnitSuffix == "d" ? 86400.0 : 3600.0
+            let totalUnits = totalSeconds / unitSeconds
+            guard totalUnits > 0 else { return "Unavailable" }
+
+            let elapsedUnitsRaw = elapsedSeconds / unitSeconds
+            let minElapsedUnits = max(0.0001, totalUnits * 0.01)
+            let elapsedUnits = max(elapsedUnitsRaw, minElapsedUnits)
+
+            let usagePercent = usageRatio * 100.0
+            let pacePercentPerUnit = usagePercent / elapsedUnits
+            guard pacePercentPerUnit.isFinite else { return "Unavailable" }
+
+            let clamped = min(999.9, max(0.0, pacePercentPerUnit))
+            return String(format: "%.1f%%/%@", clamped, paceUnitSuffix)
+        }
+
         var predictText: String {
             if predictedFinalUsage > 100 {
                 return String(format: "+%.0f%%", predictedFinalUsage)
-            } else {
-                return String(format: "%.0f%%", predictedFinalUsage)
             }
-        }
-
-        var statusText: String {
-            switch status {
-            case .usedUp: return "Used Up"
-            case .onTrack: return "On Track"
-            case .slightlyFast: return "Slightly Fast"
-            case .tooFast: return "Too Fast"
-            }
+            return String(format: "%.0f%%", predictedFinalUsage)
         }
     }
 
@@ -935,10 +954,11 @@ extension StatusBarController {
     }
 
     func calculatePace(usage: Double, resetTime: Date, windowHours: Int) -> PaceInfo {
-        let windowSeconds = Double(windowHours * 3600)
+        let windowSeconds = Double(windowHours) * 3600.0
         let now = Date()
         let remainingSeconds = resetTime.timeIntervalSince(now)
-        let elapsedSeconds = windowSeconds - remainingSeconds
+        let rawElapsedSeconds = windowSeconds - remainingSeconds
+        let elapsedSeconds = max(0, min(windowSeconds, rawElapsedSeconds))
 
         let elapsedRatio = max(0, min(1, elapsedSeconds / windowSeconds))
         let usageRatio = usage / 100.0
@@ -956,7 +976,9 @@ extension StatusBarController {
             usageRatio: usageRatio,
             predictedFinalUsage: predictedFinalUsage,
             remainingSeconds: remainingSeconds,
-            isExhausted: isExhausted
+            isExhausted: isExhausted,
+            elapsedSeconds: elapsedSeconds,
+            totalSeconds: windowSeconds
         )
     }
 
@@ -976,12 +998,14 @@ extension StatusBarController {
                 usageRatio: usagePercent / 100.0,
                 predictedFinalUsage: usagePercent,
                 remainingSeconds: remainingSeconds,
-                isExhausted: isExhausted
+                isExhausted: isExhausted,
+                elapsedSeconds: 0,
+                totalSeconds: 0
             )
         }
 
-        let totalSeconds = resetDate.timeIntervalSince(billingStart)
-        let elapsedSeconds = now.timeIntervalSince(billingStart)
+        let totalSeconds = max(0, resetDate.timeIntervalSince(billingStart))
+        let elapsedSeconds = max(0, min(totalSeconds, now.timeIntervalSince(billingStart)))
 
         guard totalSeconds > 0 else {
             return PaceInfo(
@@ -989,7 +1013,9 @@ extension StatusBarController {
                 usageRatio: usagePercent / 100.0,
                 predictedFinalUsage: usagePercent,
                 remainingSeconds: remainingSeconds,
-                isExhausted: isExhausted
+                isExhausted: isExhausted,
+                elapsedSeconds: elapsedSeconds,
+                totalSeconds: totalSeconds
             )
         }
 
@@ -1008,7 +1034,9 @@ extension StatusBarController {
             usageRatio: usageRatio,
             predictedFinalUsage: predictedFinalUsage,
             remainingSeconds: remainingSeconds,
-            isExhausted: isExhausted
+            isExhausted: isExhausted,
+            elapsedSeconds: elapsedSeconds,
+            totalSeconds: totalSeconds
         )
     }
 
@@ -1022,8 +1050,10 @@ extension StatusBarController {
 
         let view = NSView(frame: NSRect(x: 0, y: 0, width: menuWidth, height: itemHeight))
 
-        let indentedLeading: CGFloat = leadingOffset + 18
-        let leftTextField = NSTextField(labelWithString: "Pace: \(paceInfo.statusText)")
+        let indentedLeading: CGFloat = leadingOffset + MenuDesignToken.Spacing.submenuIndent
+        let paceText = paceInfo.paceRateText
+        debugLog("createPaceView: pace label computed: \(paceText)")
+        let leftTextField = NSTextField(labelWithString: "Pace: \(paceText)")
         leftTextField.font = NSFont.systemFont(ofSize: fontSize)
         leftTextField.textColor = .secondaryLabelColor
         leftTextField.lineBreakMode = .byTruncatingTail
@@ -1083,7 +1113,9 @@ extension StatusBarController {
                 string: waitText,
                 attributes: [.font: NSFont.boldSystemFont(ofSize: fontSize), .foregroundColor: paceInfo.status.color]
             ))
+            rightTextField.isHidden = false
         } else {
+            debugLog("createPaceView: predict label computed: \(paceInfo.predictText)")
             rightAttributedString.append(NSAttributedString(
                 string: "Predict: ",
                 attributes: [.font: NSFont.systemFont(ofSize: fontSize), .foregroundColor: NSColor.disabledControlTextColor]
@@ -1092,6 +1124,7 @@ extension StatusBarController {
                 string: paceInfo.predictText,
                 attributes: [.font: NSFont.boldSystemFont(ofSize: fontSize), .foregroundColor: paceInfo.status.color]
             ))
+            rightTextField.isHidden = false
         }
         rightTextField.attributedStringValue = rightAttributedString
         rightTextField.isBezeled = false
