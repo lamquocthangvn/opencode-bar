@@ -663,6 +663,13 @@ extension StatusBarController {
         let dividerCount = didGroup ? max(0, groupedUsageWindows.count - 1) : 0
         debugLog("\(debugContext): adding \(dividerCount) divider(s) between model groups")
 
+        let shouldAddWindowInfoDivider = groupedUsageWindows.count == 1
+            && (groupedUsageWindows.first?.models.count ?? 0) > 1
+            && groupedUsageWindows.first?.resetDate != nil
+        if shouldAddWindowInfoDivider {
+            debugLog("\(debugContext): adding divider between model list and reset/pace info")
+        }
+
         // Keep one model per row to avoid long wrapped labels while still sharing reset/pace
         // for groups that have the same usage and quota reset window.
         for (groupIndex, grouped) in groupedUsageWindows.enumerated() {
@@ -675,6 +682,10 @@ extension StatusBarController {
             }
 
             if let resetDate = grouped.resetDate {
+                if groupIndex == 0, shouldAddWindowInfoDivider {
+                    addHorizontalDivider(to: submenu)
+                }
+
                 let formatter = DateFormatter()
                 formatter.dateFormat = "yyyy-MM-dd HH:mm zzz"
                 formatter.timeZone = TimeZone.current
