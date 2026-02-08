@@ -21,6 +21,9 @@ actor CopilotCLIProvider: ProviderProtocol {
         
         // Get GitHub cookies from browser
         let cookies: GitHubCookies
+        // Browser cookie reading disabled
+        throw ProviderError.authenticationFailed("Browser cookie reading is disabled. Please use OpenCode auth tokens.")
+        /*
         do {
             cookies = try BrowserCookieService.shared.getGitHubCookies()
             logger.info("CopilotCLIProvider: Cookies obtained successfully")
@@ -28,6 +31,7 @@ actor CopilotCLIProvider: ProviderProtocol {
             logger.error("CopilotCLIProvider: Failed to get cookies - \(error.localizedDescription)")
             throw ProviderError.authenticationFailed("No GitHub cookies found. Please sign in to GitHub in Chrome/Brave/Arc/Edge.")
         }
+        */
         
         // Fetch customer ID
         let customerId: String

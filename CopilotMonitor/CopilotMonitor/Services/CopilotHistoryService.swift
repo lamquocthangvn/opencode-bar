@@ -22,12 +22,16 @@ class CopilotHistoryService {
 
         // 1. Get cookies from browser
         let cookies: GitHubCookies
+        // Browser cookie reading disabled
+        throw CopilotHistoryError.invalidCookies
+        /*
         do {
             cookies = try BrowserCookieService.shared.getGitHubCookies()
         } catch {
             logger.error("Failed to get GitHub cookies: \(error.localizedDescription)")
             throw CopilotHistoryError.invalidCookies
         }
+        */
 
         guard cookies.isValid else {
             logger.error("GitHub cookies are not valid (missing user_session or logged_in)")

@@ -1556,12 +1556,16 @@ final class TokenManager: @unchecked Sendable {
         }
 
         func browserCookieStatus() -> String {
+            // Browser cookie reading disabled to prevent macOS permission prompts
+            return "DISABLED (To prevent prompts)"
+            /*
             do {
                 _ = try BrowserCookieService.shared.getGitHubCookies()
                 return "AVAILABLE"
             } catch {
                 return "NOT AVAILABLE"
             }
+            */
         }
 
         lines.append("[ChatGPT]")
