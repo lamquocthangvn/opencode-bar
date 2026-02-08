@@ -3,279 +3,162 @@ import os.log
 
 private let logger = Logger(subsystem: "com.opencodeproviders", category: "AntigravityProvider")
 
-private func runCommandAsync(executableURL: URL, arguments: [String], timeout: TimeInterval = 60.0) async throws -> String {
-    return try await withThrowingTaskGroup(of: String.self) { group in
-        let process = Process()
-        process.executableURL = executableURL
-        process.arguments = arguments
+// MARK: - Antigravity OAuth Types
 
-        group.addTask {
-            try await withCheckedThrowingContinuation { continuation in
-                let pipe = Pipe()
-                process.standardOutput = pipe
-                process.standardError = pipe
-
-                // Use nonisolated(unsafe) to allow mutation in concurrent handlers
-                // This is safe because the handlers are serialized by the Process lifecycle
-                nonisolated(unsafe) var outputData = Data()
-
-                pipe.fileHandleForReading.readabilityHandler = { handle in
-                    let data = handle.availableData
-                    if !data.isEmpty {
-                        outputData.append(data)
-                    }
-                }
-
-                process.terminationHandler = { _ in
-                    pipe.fileHandleForReading.readabilityHandler = nil
-
-                    let remainingData = pipe.fileHandleForReading.readDataToEndOfFile()
-                    if !remainingData.isEmpty {
-                        outputData.append(remainingData)
-                    }
-
-                    guard let output = String(data: outputData, encoding: .utf8) else {
-                        continuation.resume(throwing: ProviderError.providerError("Cannot decode output"))
-                        return
-                    }
-
-                    continuation.resume(returning: output)
-                }
-
-                do {
-                    try process.run()
-                } catch {
-                    continuation.resume(throwing: error)
-                }
-            }
-        }
-
-        group.addTask {
-            try await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
-            throw ProviderError.networkError("Command timeout after \(Int(timeout))s")
-        }
-
-        guard let result = try await group.next() else {
-            throw ProviderError.networkError("Task group failed")
-        }
-
-        group.cancelAll()
-
-        if process.isRunning {
-            process.terminate()
-        }
-
-        return result
-    }
+struct AntigravityAccount {
+    let email: String
+    let refreshToken: String
+    let projectId: String
 }
 
-// MARK: - Antigravity API Response Models
+struct OAuthTokenResponse: Codable {
+    let access_token: String
+    let expires_in: Int?
+    let token_type: String?
+}
 
-/// Response structure from Antigravity local language server API
-struct AntigravityResponse: Codable {
-    let userStatus: UserStatus?
+struct AntigravityModelInfo: Codable {
+    let displayName: String?
+    let modelName: String?
+    let quotaInfo: QuotaInfo?
+}
 
-    struct UserStatus: Codable {
-        let email: String?
-        let userTier: UserTier?
-        let planStatus: PlanStatus?
-        let cascadeModelConfigData: CascadeModelConfigData?
+struct QuotaInfo: Codable {
+    let remainingFraction: Double?
+    let resetTime: String?
+}
 
-        struct UserTier: Codable {
-            let name: String?
-        }
-
-        struct PlanStatus: Codable {
-            let planInfo: PlanInfo?
-
-            struct PlanInfo: Codable {
-                let planDisplayName: String?
-            }
-        }
-
-        struct CascadeModelConfigData: Codable {
-            let clientModelConfigs: [ClientModelConfig]?
-        }
-
-        struct ClientModelConfig: Codable {
-            let label: String
-            let modelOrAlias: ModelOrAlias?
-            let quotaInfo: QuotaInfo?
-
-            struct ModelOrAlias: Codable {
-                let model: String?
-            }
-
-            struct QuotaInfo: Codable {
-                let remainingFraction: Double?
-                let resetTime: String?
-            }
-        }
-    }
+struct FetchAvailableModelsResponse: Codable {
+    let models: [String: AntigravityModelInfo]?
 }
 
 // MARK: - AntigravityProvider Implementation
 
-/// Provider for Antigravity local language server usage tracking
-/// Connects to local language_server_macos process via HTTPS API
-/// Uses quota-based model with per-model remaining percentages
+/// Provider for Antigravity quota tracking via OAuth API
+/// Uses Antigravity API endpoint with OAuth credentials from antigravity-accounts.json
 final class AntigravityProvider: ProviderProtocol {
     let identifier: ProviderIdentifier = .antigravity
     let type: ProviderType = .quotaBased
 
+    // MARK: - Constants
+
+    private let tokenEndpoint = "https://oauth2.googleapis.com/token"
+    private let quotaEndpoint = "https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal:fetchAvailableModels"
+    private let clientId = "1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com"
+    private let clientSecret = "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"
+    private let userAgent = "antigravity/1.15.8 darwin/arm64"
+
     // MARK: - ProviderProtocol Implementation
 
-    /// Fetches Antigravity usage data from local language server
-    /// - Returns: ProviderResult with minimum remaining quota percentage across all models
-    /// - Throws: ProviderError if fetch fails or Antigravity not running
     func fetch() async throws -> ProviderResult {
-        // Step 1: Find language_server_macos process
-        let (pid, csrfToken) = try await detectProcessInfo()
-        logger.info("Found Antigravity process: PID=\(pid), CSRF=\(csrfToken.prefix(8))...")
+        // Step 1: Load accounts from antigravity-accounts.json
+        let accounts = try loadAntigravityAccounts()
+        guard let account = accounts.first else {
+            throw ProviderError.providerError("No Antigravity accounts found")
+        }
 
-        // Step 2: Find listening port
-        let port = try await detectPort(pid: pid)
-        logger.info("Found listening port: \(port)")
+        logger.info("Using Antigravity account: \(account.email)")
 
-        // Step 3: Call API
-        let response = try await makeRequest(port: port, csrfToken: csrfToken)
+        // Step 2: Refresh OAuth token
+        let accessToken = try await refreshAccessToken(refreshToken: account.refreshToken)
 
-        // Step 4: Parse response and calculate usage
-        return try parseResponse(response)
+        // Step 3: Fetch quota from Antigravity API
+        let quotaData = try await fetchQuota(accessToken: accessToken, projectId: account.projectId)
+
+        // Step 4: Parse and return result
+        return try parseQuotaData(quotaData, email: account.email)
     }
 
     // MARK: - Private Helpers
 
-    private func detectProcessInfo() async throws -> (Int, String) {
-        let output = try await runCommandAsync(
-            executableURL: URL(fileURLWithPath: "/bin/ps"),
-            arguments: ["-ax", "-o", "pid=,command="]
-        )
+    private func loadAntigravityAccounts() throws -> [AntigravityAccount] {
+        let fileManager = FileManager.default
+        let accountsPath = fileManager.homeDirectoryForCurrentUser
+            .appendingPathComponent(".config")
+            .appendingPathComponent("opencode")
+            .appendingPathComponent("antigravity-accounts.json")
 
-        let lines = output.components(separatedBy: "\n")
-        guard let processLine = lines.first(where: {
-            $0.contains("language_server_macos") && $0.contains("antigravity") && !$0.contains("grep")
-        }) else {
-            logger.warning("Antigravity language server not running")
-            throw ProviderError.providerError("Antigravity not running")
+        guard fileManager.fileExists(atPath: accountsPath.path) else {
+            throw ProviderError.providerError("Antigravity accounts file not found at \(accountsPath.path)")
+        }
+        guard fileManager.isReadableFile(atPath: accountsPath.path) else {
+            throw ProviderError.providerError("Antigravity accounts file not readable at \(accountsPath.path)")
         }
 
-        let components = processLine.trimmingCharacters(in: .whitespaces).components(separatedBy: .whitespaces)
-        guard let pidString = components.first, let pid = Int(pidString) else {
-            logger.error("Cannot parse PID from process line")
-            throw ProviderError.providerError("Cannot parse PID")
+        do {
+            let data = try Data(contentsOf: accountsPath)
+            let decoder = JSONDecoder()
+            let accountsData = try decoder.decode(AntigravityAccountsData.self, from: data)
+            return accountsData.accounts.map {
+                AntigravityAccount(email: $0.email, refreshToken: $0.refreshToken, projectId: $0.projectId)
+            }
+        } catch {
+            logger.error("Failed to read Antigravity accounts: \(error.localizedDescription)")
+            throw ProviderError.decodingError("Invalid accounts file format: \(error.localizedDescription)")
         }
-
-        let csrfPattern = "--csrf_token[= ]+([a-zA-Z0-9-]+)"
-        guard let regex = try? NSRegularExpression(pattern: csrfPattern),
-              let match = regex.firstMatch(in: processLine, range: NSRange(processLine.startIndex..., in: processLine)),
-              let range = Range(match.range(at: 1), in: processLine) else {
-            logger.error("Cannot extract CSRF token from process args")
-            throw ProviderError.providerError("Cannot extract CSRF token")
-        }
-
-        let csrfToken = String(processLine[range])
-        return (pid, csrfToken)
     }
 
-    private func detectPort(pid: Int) async throws -> Int {
-        let output = try await runCommandAsync(
-            executableURL: URL(fileURLWithPath: "/usr/sbin/lsof"),
-            arguments: ["-nP", "-iTCP", "-sTCP:LISTEN", "-a", "-p", "\(pid)"]
-        )
-
-        let portPattern = "(?:\\*|127\\.0\\.0\\.1):(\\d+) \\(LISTEN\\)"
-        guard let regex = try? NSRegularExpression(pattern: portPattern),
-              let match = regex.firstMatch(in: output, range: NSRange(output.startIndex..., in: output)),
-              let range = Range(match.range(at: 1), in: output),
-              let port = Int(output[range]) else {
-            logger.error("Cannot find listening port in lsof output: \(output)")
-            throw ProviderError.providerError("Cannot find listening port")
-        }
-
-        return port
-    }
-
-    /// Makes HTTPS request to local language server API
-    /// - Parameters:
-    ///   - port: Port number
-    ///   - csrfToken: CSRF token for authentication
-    /// - Returns: Decoded AntigravityResponse
-    /// - Throws: ProviderError if request fails
-    private func makeRequest(port: Int, csrfToken: String) async throws -> AntigravityResponse {
-        guard let url = URL(string: "https://127.0.0.1:\(port)/exa.language_server_pb.LanguageServerService/GetUserStatus") else {
-            logger.error("Invalid API URL")
-            throw ProviderError.networkError("Invalid API endpoint")
-        }
-
-        var request = URLRequest(url: url)
+    private func refreshAccessToken(refreshToken: String) async throws -> String {
+        var request = URLRequest(url: URL(string: tokenEndpoint)!)
         request.httpMethod = "POST"
-        request.setValue(csrfToken, forHTTPHeaderField: "X-Codeium-Csrf-Token")
-        request.setValue("1", forHTTPHeaderField: "Connect-Protocol-Version")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
 
-        // Request body
-        let requestBody: [String: Any] = [
-            "metadata": [
-                "ideName": "antigravity",
-                "extensionName": "antigravity",
-                "ideVersion": "unknown",
-                "locale": "en"
-            ]
-        ]
-        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        let body = [
+            "client_id=\(clientId)",
+            "client_secret=\(clientSecret)",
+            "refresh_token=\(refreshToken)",
+            "grant_type=refresh_token"
+        ].joined(separator: "&")
+        request.httpBody = body.data(using: .utf8)
 
-        // Create session with self-signed cert delegate
-        let configuration = URLSessionConfiguration.default
-        let session = URLSession(configuration: configuration, delegate: SelfSignedCertDelegate(), delegateQueue: nil)
+        let (data, response) = try await URLSession.shared.data(for: request)
 
-        // Execute request
-        let (data, response) = try await session.data(for: request)
-
-        // Check HTTP status
         guard let httpResponse = response as? HTTPURLResponse else {
-            logger.error("Invalid response type from Antigravity API")
             throw ProviderError.networkError("Invalid response type")
         }
 
         guard (200...299).contains(httpResponse.statusCode) else {
-            logger.error("Antigravity API returned status \(httpResponse.statusCode)")
-            throw ProviderError.networkError("HTTP \(httpResponse.statusCode)")
+            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
+            logger.error("Token refresh failed: HTTP \(httpResponse.statusCode) - \(errorMessage)")
+            throw ProviderError.authenticationFailed("Failed to refresh access token")
         }
 
-        // Parse response
-        do {
-            let decoder = JSONDecoder()
-            return try decoder.decode(AntigravityResponse.self, from: data)
-        } catch {
-            logger.error("Failed to decode Antigravity response: \(error.localizedDescription)")
-            throw ProviderError.decodingError("Invalid response format: \(error.localizedDescription)")
-        }
+        let tokenResponse = try JSONDecoder().decode(OAuthTokenResponse.self, from: data)
+        return tokenResponse.access_token
     }
 
-    /// Parses Antigravity response and calculates usage
-    /// - Parameter response: Decoded API response
-    /// - Returns: ProviderResult with quota-based usage
-    /// - Throws: ProviderError if response is invalid
-    private func parseResponse(_ response: AntigravityResponse) throws -> ProviderResult {
-        guard let userStatus = response.userStatus else {
-            logger.error("Antigravity API response missing userStatus")
-            throw ProviderError.providerError("Missing userStatus")
+    private func fetchQuota(accessToken: String, projectId: String) async throws -> FetchAvailableModelsResponse {
+        var request = URLRequest(url: URL(string: quotaEndpoint)!)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+
+        let body = ["project": projectId]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw ProviderError.networkError("Invalid response type")
         }
 
-        // Extract email
-        let email = userStatus.email
-
-        // Extract plan name (try userTier.name first, fallback to planStatus.planInfo.planDisplayName)
-        let plan = userStatus.userTier?.name ?? userStatus.planStatus?.planInfo?.planDisplayName ?? "unknown"
-
-        // Extract model quotas
-        guard let modelConfigs = userStatus.cascadeModelConfigData?.clientModelConfigs else {
-            logger.error("Antigravity API response missing model configs")
-            throw ProviderError.providerError("Missing model configs")
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
+            logger.error("Quota fetch failed: HTTP \(httpResponse.statusCode) - \(errorMessage)")
+            throw ProviderError.networkError("Failed to fetch quota: HTTP \(httpResponse.statusCode)")
         }
 
-        // Calculate remaining percentages for each model
+        return try JSONDecoder().decode(FetchAvailableModelsResponse.self, from: data)
+    }
+
+    private func parseQuotaData(_ response: FetchAvailableModelsResponse, email: String) throws -> ProviderResult {
+        guard let models = response.models, !models.isEmpty else {
+            logger.error("Antigravity API response missing models")
+            throw ProviderError.providerError("No quota data available")
+        }
+
+        // Extract quota info for all models
         var modelBreakdown: [String: Double] = [:]
         var modelResetTimes: [String: Date] = [:]
         var remainingPercentages: [Double] = []
@@ -286,22 +169,24 @@ final class AntigravityProvider: ProviderProtocol {
         let iso8601FormatterNoFrac = ISO8601DateFormatter()
         iso8601FormatterNoFrac.formatOptions = [.withInternetDateTime]
 
-        for config in modelConfigs {
-            guard let quotaInfo = config.quotaInfo else { continue }
+        for (modelName, modelInfo) in models {
+            guard let quotaInfo = modelInfo.quotaInfo else { continue }
+            guard let remainingFraction = quotaInfo.remainingFraction else { continue }
 
             // remainingFraction is 0.0-1.0, convert to percentage
-            let remainingFraction = quotaInfo.remainingFraction ?? 1.0
             let remainingPercent = remainingFraction * 100.0
 
-            modelBreakdown[config.label] = remainingPercent
+            let displayName = modelInfo.displayName ?? modelInfo.modelName ?? modelName
+            modelBreakdown[displayName] = remainingPercent
             remainingPercentages.append(remainingPercent)
 
-            logger.debug("Model \(config.label): \(String(format: "%.1f", remainingPercent))% remaining")
+            logger.debug("Model \(displayName): \(String(format: "%.1f", remainingPercent))% remaining")
 
+            // Parse reset time if available
             let resetTime = quotaInfo.resetTime?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             if !resetTime.isEmpty,
                let resetDate = iso8601Formatter.date(from: resetTime) ?? iso8601FormatterNoFrac.date(from: resetTime) {
-                modelResetTimes[config.label] = resetDate
+                modelResetTimes[displayName] = resetDate
                 parsedResetCount += 1
             }
         }
@@ -310,6 +195,11 @@ final class AntigravityProvider: ProviderProtocol {
             logger.info("Antigravity: Parsed reset times for \(parsedResetCount)/\(modelBreakdown.count) model(s)")
         } else {
             logger.info("Antigravity: No model reset times parsed (showing ungrouped model usage)")
+        }
+
+        guard !remainingPercentages.isEmpty else {
+            logger.error("No quota information found in models")
+            throw ProviderError.providerError("No quota data available")
         }
 
         // Use minimum remaining percentage across all models
@@ -321,9 +211,9 @@ final class AntigravityProvider: ProviderProtocol {
         let details = DetailedUsage(
             modelBreakdown: modelBreakdown,
             modelResetTimes: modelResetTimes.isEmpty ? nil : modelResetTimes,
-            planType: plan,
+            planType: "Antigravity",
             email: email,
-            authSource: "Antigravity Local Server (localhost)"
+            authSource: "~/.config/opencode/antigravity-accounts.json"
         )
 
         // Return as quota-based usage
@@ -337,23 +227,16 @@ final class AntigravityProvider: ProviderProtocol {
     }
 }
 
-// MARK: - SSL Delegate for Self-Signed Certificates
+// MARK: - Helper Types
 
-/// URLSessionDelegate that accepts self-signed certificates for localhost
-/// Required because Antigravity language server uses self-signed HTTPS
-private class SelfSignedCertDelegate: NSObject, URLSessionDelegate {
-    func urlSession(
-        _ session: URLSession,
-        didReceive challenge: URLAuthenticationChallenge,
-        completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
-    ) {
-        // Accept self-signed certificates for localhost only
-        if challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
-           let trust = challenge.protectionSpace.serverTrust,
-           challenge.protectionSpace.host == "127.0.0.1" {
-            completionHandler(.useCredential, URLCredential(trust: trust))
-        } else {
-            completionHandler(.performDefaultHandling, nil)
-        }
+struct AntigravityAccountsData: Codable {
+    let version: Int
+    let accounts: [AccountData]
+    let activeIndex: Int
+
+    struct AccountData: Codable {
+        let email: String
+        let refreshToken: String
+        let projectId: String
     }
 }

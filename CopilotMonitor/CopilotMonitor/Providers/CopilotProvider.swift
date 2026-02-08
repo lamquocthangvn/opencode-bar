@@ -41,12 +41,15 @@ final class CopilotProvider: ProviderProtocol {
         var cookieCandidate: CopilotAccountCandidate?
 
         let cookies: GitHubCookies?
+        /*
         do {
             cookies = try BrowserCookieService.shared.getGitHubCookies()
         } catch {
             logger.warning("CopilotProvider: Failed to get cookies: \(error.localizedDescription)")
             cookies = nil
         }
+        */
+        cookies = nil
 
         if let cookies = cookies, cookies.isValid {
             let cookieLogin = cookies.dotcomUser?.trimmingCharacters(in: .whitespacesAndNewlines)
